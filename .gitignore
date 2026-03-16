@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python edition (original reference)
+learn-claude-code/
+
+# Handoff and verification scaffold files
+HANDOFF_INDEX.md
+CONTINUATION_PLAN.md
+QUICKSTART_NEXT_SESSION.md
+TASKS_REMAINING.md
+
+# Verification and implementation documentation (scaffold files)
+VERIFICATION.md
+FEATURE_MATRIX.md
+IMPLEMENTATION_SUMMARY.md
+
+# Temporary files
+*.tmp
+.cache/
+temp/
+tmp/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Claude Code specific
+.claude/

@@ -1,0 +1,65 @@
+{
+  "name": "learn-claude-code-typescript",
+  "version": "1.0.0",
+  "description": "TypeScript implementation of Learn Claude Code - An educational project teaching how to build AI coding agents",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:s01": "vitest run tests/integration/s01.test.ts",
+    "test:s02": "vitest run tests/integration/s02.test.ts",
+    "test:s03": "vitest run tests/integration/s03.test.ts",
+    "test:s04": "vitest run tests/integration/s04.test.ts",
+    "test:s05": "vitest run tests/integration/s05.test.ts",
+    "test:s06": "vitest run tests/integration/s06.test.ts",
+    "test:s07": "vitest run tests/integration/s07.test.ts",
+    "test:s08": "vitest run tests/integration/s08.test.ts",
+    "test:s09": "vitest run tests/integration/s09.test.ts",
+    "test:s10": "vitest run tests/integration/s10.test.ts",
+    "test:s11": "vitest run tests/integration/s11.test.ts",
+    "test:s12": "vitest run tests/integration/s12.test.ts",
+    "s01": "ts-node agents/s01_agent_loop.ts",
+    "s02": "ts-node agents/s02_tool_use.ts",
+    "s03": "ts-node agents/s03_todo_write.ts",
+    "s04": "ts-node agents/s04_subagent.ts",
+    "s05": "ts-node agents/s05_skill_loading.ts",
+    "s06": "ts-node agents/s06_context_compact.ts",
+    "s07": "ts-node agents/s07_task_system.ts",
+    "s08": "ts-node agents/s08_background_tasks.ts",
+    "s09": "ts-node agents/s09_agent_teams.ts",
+    "s10": "ts-node agents/s10_team_protocols.ts",
+    "s11": "ts-node agents/s11_autonomous_agents.ts",
+    "s12": "ts-node agents/s12_worktree_task_isolation.ts",
+    "s:full": "ts-node agents/s_full.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "anthropic",
+    "claude",
+    "ai",
+    "agents",
+    "typescript",
+    "education",
+    "tutorial"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "dotenv": "^16.4.7",
+    "js-yaml": "^4.1.0",
+    "simple-git": "^3.27.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.13.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.0.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
