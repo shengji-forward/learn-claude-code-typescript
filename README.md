@@ -106,8 +106,8 @@ This TypeScript edition maintains **95% feature parity** with the Python version
 The TypeScript edition includes several **enhancements** not found in the Python version:
 
 - **Type Safety**: Compile-time error detection vs runtime checks
-- **Integration Tests**: Comprehensive test suite (Python has no tests)
-- **Enhanced Documentation**: Individual session guides with TypeScript vs Python comparisons
+- **Integration Tests**: Comprehensive test suite for advanced sessions (Python has no tests)
+- **Enhanced Documentation**: Individual session guides with TypeScript patterns
 - **Better Modularity**: Reusable components across sessions (tools, types, utils)
 - **Modern Patterns**: Async/await, discriminated unions, interfaces, ES modules
 
@@ -127,23 +127,6 @@ The TypeScript edition includes several **enhancements** not found in the Python
 
 Each session includes educational comments explaining TypeScript-specific patterns and how they compare to the Python implementation.
 
-## Completeness Verification
-
-This TypeScript edition has been **verified as complete** with 95% feature parity to the Python edition. All 12 core sessions, the capstone project, and all skills are fully implemented.
-
-For detailed analysis, see [VERIFICATION.md](./VERIFICATION.md) for:
-- Complete feature comparison
-- Session-by-session breakdown
-- TypeScript improvements over Python
-- Testing and documentation comparison
-
-**Quick Summary**:
-- ✅ All 12 sessions (s01-s12) fully implemented
-- ✅ s_full.ts capstone complete
-- ✅ All 4 skills present (pdf, code-review, agent-builder, mcp-builder)
-- ✅ Enhanced with type safety, testing, and better documentation
-- ❌ Web interface is Python-only (CLI learning path is complete)
-
 ## Scope (Important)
 
 This repository is a 0->1 learning project for building a nano Claude Code-like agent.
@@ -160,7 +143,7 @@ Treat the team JSONL mailbox protocol in this repo as a teaching implementation,
 ## Quick Start
 
 ```sh
-git clone https://github.com/shareAI-lab/learn-claude-code-typescript
+git clone https://github.com/shengji-forward/learn-claude-code-typescript
 cd learn-claude-code-typescript
 npm install
 cp .env.example .env   # Edit .env with your ANTHROPIC_API_KEY
@@ -185,7 +168,7 @@ npm run s:full # Complete implementation
 
 ```
 learn-claude-code-typescript/
-├── agents/              # Progressive session implementations (s01-s12)
+├── agents/              # Progressive session implementations (s01-s12, s_full)
 │   ├── s01_agent_loop.ts
 │   ├── s02_tool_use.ts
 │   └── ...
@@ -193,9 +176,16 @@ learn-claude-code-typescript/
 │   ├── types/          # TypeScript type definitions
 │   ├── tools/          # Tool implementations
 │   └── utils/          # Shared utilities
-├── tests/              # Test suite
+├── workers/            # Worker thread implementations
+├── tests/              # Integration tests for advanced sessions
 │   └── integration/
-├── docs/               # Session documentation (en, zh, ja)
+├── skills/             # Skill definitions
+│   ├── pdf/
+│   ├── code-review/
+│   ├── agent-builder/
+│   └── mcp-builder/
+├── docs/               # Session documentation
+│   └── en/             # English documentation
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -203,19 +193,38 @@ learn-claude-code-typescript/
 
 ## Testing
 
+Integration tests are available for advanced sessions:
+
 ```sh
-npm test              # Run all tests
-npm test:s01         # Test session 1 only
-npm test:watch       # Watch mode
+npm test                     # Run all tests
+npm run test:s10            # Test session 10 only
+npm run test:s11            # Test session 11 only
+npm run test:s12            # Test session 12 only
+npm run test:watch          # Watch mode
 ```
+
+**Note**: Tests are currently available for sessions s10, s11, s12, and s_full (capstone). Tests for earlier sessions are planned for future releases.
 
 ## Documentation
 
 - **English**: [docs/en/](./docs/en/)
-- **中文**: [docs/zh/](./docs/zh/)
-- **日本語**: [docs/ja/](./docs/ja/)
 
-Start with [Session 1: The Agent Loop](./docs/en/s01_agent_loop.md) for the complete walkthrough.
+Start with [Session 1: The Agent Loop](./docs/en/s01-the-agent-loop.md) for the complete walkthrough.
+
+Available session guides:
+- [s01: The Agent Loop](./docs/en/s01-the-agent-loop.md)
+- [s02: Tool Use](./docs/en/s02-tool-use.md)
+- [s03: Todo Write](./docs/en/s03-todo-write.md)
+- [s04: Subagent](./docs/en/s04-subagent.md)
+- [s05: Skill Loading](./docs/en/s05-skill-loading.md)
+- [s06: Context Compact](./docs/en/s06-context-compact.md)
+- [s07: Task System](./docs/en/s07-task-system.md)
+- [s08: Background Tasks](./docs/en/s08-background-tasks.md)
+- [s09: Agent Teams](./docs/en/s09-agent-teams.md)
+- [s10: Team Protocols](./docs/en/s10-team-protocols.md)
+- [s11: Autonomous Agents](./docs/en/s11-autonomous-agents.md)
+- [s12: Worktree Task Isolation](./docs/en/s12-worktree-task-isolation.md)
+- [s_full: Capstone](./docs/en/s_full_capstone.md)
 
 ## License
 
