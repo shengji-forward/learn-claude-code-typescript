@@ -21,7 +21,6 @@
     "s12": "node --loader ts-node/esm agents/s12_worktree_task_isolation.ts",
     "s:full": "node --loader ts-node/esm agents/s_full.ts",
     "type-check": "tsc --noEmit",
-    "parity:audit": "node scripts/parity-audit.mjs",
     "web:build": "npm --prefix web run build"
   },
   "keywords": [

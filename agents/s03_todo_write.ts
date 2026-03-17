@@ -66,7 +66,9 @@ const WORKDIR = process.cwd();
 const client = new Anthropic({
     baseURL: process.env.ANTHROPIC_BASE_URL,
 });
-const MODEL = process.env.MODEL_ID || "claude-sonnet-4-6";
+const MODEL = process.env.MODEL_ID ?? (() => {
+    throw new Error("MODEL_ID environment variable is required.");
+})();
 
 const SYSTEM = `You are a coding agent at ${WORKDIR}.
 Use the todo tool to plan multi-step tasks. Mark in_progress before starting, completed when done.

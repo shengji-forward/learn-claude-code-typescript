@@ -1,211 +1,61 @@
-# Session 8: Background Tasks
+# s08: Background Tasks
 
-## Overview
+`s01 > s02 > s03 > s04 > s05 > s06 | s07 > [ s08 ] s09 > s10 > s11 > s12`
 
-This session introduces background task execution using Worker Threads. Learn how to run long-running commands without blocking the agent loop.
+> "Run slow operations in the background; the agent keeps thinking".
 
-### What You'll Learn
+## Problem
 
-- **Worker Threads**: Parallel execution
-- **Task Queue**: Queue background tasks
-- **Notification System**: Check task completion
-- **Non-blocking Operations**: Keep agent responsive
-- **Error Handling**: Manage worker failures
+Long-running commands block the main loop and waste time. We need concurrent execution for operations like test runs and large builds.
 
-## Running the Session
+## Solution
 
-```bash
-npm run s08
-# or
-ts-node agents/s08_background_tasks.ts
+Use worker threads for background commands and inject completion notifications back into the main loop.
+
+```
+main loop -> spawn background task -> continue foreground work
+background worker -> completes -> queue notification -> next loop turn consumes it
 ```
 
-## Key Implementation Details
+## How It Works
 
-### TypeScript vs Python
-
-**Threading**:
-- **Python**: `threading.Thread` with GIL limitations
-- **TypeScript**: `worker_threads` with true parallelism
-- **Why**: Better performance for CPU-bound tasks
-
-**Communication**:
-- **Python**: Shared memory with locks
-- **TypeScript**: Message passing between workers
-- **Why**: Safer concurrent execution
-
-**Async/Await**:
-- **Python**: Synchronous execution
-- **TypeScript**: Async operations throughout
-- **Why**: Non-blocking I/O
-
-## Code Examples
-
-### Worker Script (workers/task-worker.ts)
+1. `BackgroundManager` starts a worker and returns task ID immediately.
 
 ```typescript
-import { parentPort, workerData } from "worker_threads";
-import { exec } from "child_process";
-import { promisify } from "util";
+const id = await BACKGROUND.run("npm test -- --runInBand");
+```
 
-const execAsync = promisify(exec);
+2. Worker executes command with timeout and reports result.
 
-interface TaskData {
-    taskId: string;
-    command: string;
-    timeout: number;
-}
-
-interface TaskResult {
-    taskId: string;
-    success: boolean;
-    output: string;
-    error?: string;
-}
-
-async function runTask(data: TaskData): Promise<TaskResult> {
-    try {
-        const { stdout, stderr } = await execAsync(data.command, {
-            timeout: data.timeout * 1000,
-        });
-
-        return {
-            taskId: data.taskId,
-            success: true,
-            output: (stdout + stderr).trim(),
-        };
-    } catch (error: any) {
-        return {
-            taskId: data.taskId,
-            success: false,
-            output: "",
-            error: error.message,
-        };
-    }
-}
-
-// Receive task from main thread
-parentPort?.on("message", async (data: TaskData) => {
-    const result = await runTask(data);
-    parentPort?.postMessage(result);
+```typescript
+worker.on("message", (msg) => {
+  notifications.push(msg);
 });
 ```
 
-### BackgroundManager Class
+3. Agent loop drains notifications before model call.
 
 ```typescript
-import { Worker } from "worker_threads";
-
-class BackgroundManager {
-    private workers: Map<string, Worker> = new Map();
-    private results: Map<string, TaskResult> = new Map();
-
-    async run(command: string, timeout: number = 300): Promise<string> {
-        const taskId = `task_${Date.now()}`;
-
-        return new Promise((resolve, reject) => {
-            const worker = new Worker("./workers/task-worker.ts", {
-                workerData: { taskId, command, timeout },
-            });
-
-            worker.on("message", (result: TaskResult) => {
-                this.results.set(taskId, result);
-                this.workers.delete(taskId);
-
-                if (result.success) {
-                    resolve(result.output);
-                } else {
-                    reject(new Error(result.error || "Task failed"));
-                }
-            });
-
-            worker.on("error", (error) => {
-                this.workers.delete(taskId);
-                reject(error);
-            });
-
-            this.workers.set(taskId, worker);
-        });
-    }
-
-    async check(taskId: string): Promise<TaskResult | null> {
-        return this.results.get(taskId) || null;
-    }
-
-    getActiveTasks(): string[] {
-        return Array.from(this.workers.keys());
-    }
+const ready = BACKGROUND.drainNotifications();
+if (ready.length > 0) {
+  messages.push({ role: "user", content: formatBackgroundResults(ready) });
 }
 ```
 
-### Background Tools
+## What Changed From s07
 
-```typescript
-const BACKGROUND = new BackgroundManager();
+| Component | s07 | s08 |
+|---|---|---|
+| Execution style | blocking | foreground + background lanes |
+| Runtime signals | direct tool output | queued completion notifications |
+| Concurrency | none | worker-based async execution |
 
-const backgroundRunHandler: ToolHandler = async (input: unknown) => {
-    const { command, timeout } = input as {
-        command: string;
-        timeout?: number;
-    };
+## Try It
 
-    const taskId = `task_${Date.now()}`;
-    console.log(`🔄 Starting background task: ${taskId}`);
-
-    // Start task in background
-    BACKGROUND.run(command, timeout || 300)
-        .then(output => {
-            console.log(`✅ Task ${taskId} completed:\n${output}`);
-        })
-        .catch(error => {
-            console.error(`❌ Task ${taskId} failed: ${error.message}`);
-        });
-
-    return `Started background task ${taskId}. Use background_check to monitor.`;
-};
-
-const backgroundCheckHandler: ToolHandler = async (input: unknown) => {
-    const { task_id } = input as { task_id: string };
-
-    const result = await BACKGROUND.check(task_id);
-    if (!result) {
-        return "Task not found or still running";
-    }
-
-    if (result.success) {
-        return `Task completed:\n${result.output}`;
-    } else {
-        return `Task failed: ${result.error}`;
-    }
-};
+```sh
+npm run s08
 ```
 
-## Architecture
-
-```
-┌──────────────────────┐         ┌──────────────────────┐
-│   Main Thread        │         │   Worker Thread      │
-├──────────────────────┤         ├──────────────────────┤
-│  + run(command)      │ ──────> │  + exec(command)     │
-│  + check(taskId)     │ <────── │  + postMessage()     │
-│  + getActiveTasks()  │         │  + runTask()         │
-└──────────────────────┘         └──────────────────────┘
-```
-
-## Best Practices
-
-1. **Set timeouts** to prevent hanging
-2. **Monitor workers** for errors
-3. **Clean up workers** after completion
-4. **Check task status** before blocking
-5. **Handle failures** gracefully
-
-## Summary
-
-Background tasks enable long-running operations without blocking. Worker threads provide true parallelism in TypeScript. Message passing ensures safe communication.
-
-**Key Takeaways**:
-- Worker threads for parallelism
-- Message passing for safety
-- Non-blocking operations
-- Task result tracking
+- Start one long test command in background.
+- Do file edits while it runs.
+- Confirm notification arrives with completion output.

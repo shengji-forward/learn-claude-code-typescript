@@ -94,7 +94,9 @@ const WORKDIR = process.cwd();
 const client = new Anthropic({
     baseURL: process.env.ANTHROPIC_BASE_URL,
 });
-const MODEL = process.env.MODEL_ID || "claude-sonnet-4-6";
+const MODEL = process.env.MODEL_ID ?? (() => {
+    throw new Error("MODEL_ID environment variable is required.");
+})();
 const TEAM_DIR = path.join(WORKDIR, ".team");
 const INBOX_DIR = path.join(TEAM_DIR, "inbox");
 
@@ -364,6 +366,8 @@ class TeammateManager {
                 inboxDir: INBOX_DIR,
                 modelId: MODEL,
                 apiBase: process.env.ANTHROPIC_BASE_URL,
+                sessionMode: "s09",
+                protocolMode: "base",
             },
             ...(workerPath.endsWith(".ts")
                 ? { execArgv: ["--loader", "ts-node/esm"] }
@@ -374,8 +378,10 @@ class TeammateManager {
         worker.on("message", (msg: any) => {
             if (msg.type === "teammate_complete") {
                 const m = this.findMember(name);
-                if (m && m.status !== TeammateStatus.SHUTDOWN) {
-                    m.status = TeammateStatus.IDLE;
+                if (m) {
+                    m.status = msg.final_status === "shutdown"
+                        ? TeammateStatus.SHUTDOWN
+                        : TeammateStatus.IDLE;
                     this.saveConfig();
                 }
                 this.workers.delete(name);

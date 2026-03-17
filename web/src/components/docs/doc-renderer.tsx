@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { useLocale } from "@/lib/i18n";
 import docsData from "@/data/generated/docs.json";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
@@ -59,19 +58,9 @@ function postProcessHtml(html: string): string {
 }
 
 export function DocRenderer({ version }: DocRendererProps) {
-  const locale = useLocale();
-
   const doc = useMemo(() => {
-    const match = docsData.find(
-      (d: { version: string; locale: string }) =>
-        d.version === version && d.locale === locale
-    );
-    if (match) return match;
-    return docsData.find(
-      (d: { version: string; locale: string }) =>
-        d.version === version && d.locale === "en"
-    );
-  }, [version, locale]);
+    return docsData.find((d) => d.version === version && d.locale === "en");
+  }, [version]);
 
   if (!doc) return null;
 

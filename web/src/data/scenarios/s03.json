@@ -10,19 +10,19 @@
     },
     {
       "type": "tool_call",
-      "content": "[\n  { \"id\": 1, \"task\": \"Create calc.py with argument parsing\", \"status\": \"in_progress\" },\n  { \"id\": 2, \"task\": \"Implement 4 operations\", \"status\": \"pending\" },\n  { \"id\": 3, \"task\": \"Add error handling\", \"status\": \"pending\" },\n  { \"id\": 4, \"task\": \"Test all operations\", \"status\": \"pending\" }\n]",
-      "toolName": "todo_write",
+      "content": "[\n  { \"id\": 1, \"task\": \"Create calc.ts with argument parsing\", \"status\": \"in_progress\" },\n  { \"id\": 2, \"task\": \"Implement 4 operations\", \"status\": \"pending\" },\n  { \"id\": 3, \"task\": \"Add error handling\", \"status\": \"pending\" },\n  { \"id\": 4, \"task\": \"Test all operations\", \"status\": \"pending\" }\n]",
+      "toolName": "todo",
       "annotation": "TodoManager creates a visible plan BEFORE any code is written"
     },
     {
       "type": "tool_result",
       "content": "Todo list created with 4 tasks",
-      "toolName": "todo_write",
+      "toolName": "todo",
       "annotation": "The plan is now visible and trackable"
     },
     {
       "type": "tool_call",
-      "content": "calc.py\n---\nimport sys\n\ndef calculate(op, a, b):\n    ops = {'+': a+b, '-': a-b, '*': a*b, '/': a/b}\n    return ops.get(op, 'Unknown operator')\n\nif __name__ == '__main__':\n    a, op, b = float(sys.argv[1]), sys.argv[2], float(sys.argv[3])\n    print(calculate(op, a, b))",
+      "content": "calc.ts\n---\nfunction calculate(op: string, a: number, b: number): number {\n  const ops: Record<string, number> = { '+': a + b, '-': a - b, '*': a * b, '/': a / b };\n  return ops[op];\n}\n\nconst [a, op, b] = process.argv.slice(2);\nconsole.log(calculate(op, Number(a), Number(b)));",
       "toolName": "write_file",
       "annotation": "Executing task #1 and #2: create file with operations"
     },
@@ -34,13 +34,13 @@
     },
     {
       "type": "tool_call",
-      "content": "python calc.py 10 + 5",
+      "content": "node --loader ts-node/esm calc.ts 10 + 5",
       "toolName": "bash",
       "annotation": "Executing task #4: testing"
     },
     {
       "type": "tool_result",
-      "content": "15.0",
+      "content": "15",
       "toolName": "bash",
       "annotation": "Test passes"
     },

@@ -5,7 +5,7 @@
   "steps": [
     {
       "type": "user_message",
-      "content": "Add a function called greet(name) to hello.py",
+      "content": "Add a function called greet(name) to src/greet.ts",
       "annotation": "User requests a code modification"
     },
     {
@@ -15,19 +15,19 @@
     },
     {
       "type": "tool_call",
-      "content": "hello.py",
+      "content": "src/greet.ts",
       "toolName": "read_file",
       "annotation": "Dedicated read tool provides cleaner file access"
     },
     {
       "type": "tool_result",
-      "content": "print(\"Hello, World!\")",
+      "content": "export function greet() {\n  console.log(\"Hello\");\n}",
       "toolName": "read_file",
       "annotation": "File contents returned to the model"
     },
     {
       "type": "tool_call",
-      "content": "hello.py\n---\ndef greet(name):\n    print(f\"Hello, {name}!\")\n\ngreet(\"World\")",
+      "content": "src/greet.ts\n---\nexport function greet(name: string): void {\n  console.log(`Hello, ${name}!`);\n}\n\ngreet(\"World\");",
       "toolName": "write_file",
       "annotation": "write_file replaces the entire file content"
     },
@@ -39,7 +39,7 @@
     },
     {
       "type": "assistant_text",
-      "content": "I've updated hello.py with a greet(name) function that takes a name parameter.",
+      "content": "I've updated src/greet.ts with a typed greet(name) function.",
       "annotation": "4 tools beat 1: each tool has a clear, focused purpose"
     }
   ]

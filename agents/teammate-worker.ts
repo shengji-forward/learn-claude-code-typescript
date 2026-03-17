@@ -48,6 +48,8 @@ interface TeammateData {
     inboxDir: string;
     modelId: string;
     apiBase?: string;
+    sessionMode: "s09" | "s10" | "s11";
+    protocolMode: "base" | "protocols";
 }
 
 /**
@@ -76,12 +78,15 @@ const data = workerData as TeammateData;
 const WORKDIR = data.workdir;
 const INBOX_DIR = data.inboxDir;
 const MODEL = data.modelId;
+const ENABLE_PROTOCOL_TOOLS = data.protocolMode === "protocols";
 
 const client = new Anthropic(
     data.apiBase ? { baseURL: data.apiBase } : undefined
 );
 
-const SYSTEM = `You are '${data.teammateName}', role: ${data.role}, at ${WORKDIR}. Submit plans via plan_approval before major work. Respond to shutdown_request with shutdown_response.`;
+const SYSTEM = ENABLE_PROTOCOL_TOOLS
+    ? `You are '${data.teammateName}', role: ${data.role}, at ${WORKDIR}. Submit plans via plan_approval before major work. Respond to shutdown_request with shutdown_response.`
+    : `You are '${data.teammateName}', role: ${data.role}, at ${WORKDIR}. Use send_message to communicate. Complete your task.`;
 
 /**
  * Safe path resolution
@@ -245,6 +250,9 @@ async function executeTool(toolName: string, args: any): Promise<string> {
             const inbox = await readInbox(data.teammateName);
             return JSON.stringify(inbox, null, 2);
         case "shutdown_response":
+            if (!ENABLE_PROTOCOL_TOOLS) {
+                return "Error: shutdown_response is not available in this session mode.";
+            }
             await sendMessage(
                 "lead",
                 args.reason || "",
@@ -256,6 +264,9 @@ async function executeTool(toolName: string, args: any): Promise<string> {
             );
             return `Shutdown ${args.approve ? "approved" : "rejected"}`;
         case "plan_approval":
+            if (!ENABLE_PROTOCOL_TOOLS) {
+                return "Error: plan_approval is not available in this session mode.";
+            }
             const requestId = generateRequestId();
             await sendMessage(
                 "lead",
@@ -287,7 +298,7 @@ async function teammateLoop(): Promise<void> {
         { role: "user", content: data.prompt }
     ];
 
-    const TOOLS = [
+    const tools: any[] = [
         {
             name: "bash",
             description: "Run a shell command.",
@@ -360,32 +371,38 @@ async function teammateLoop(): Promise<void> {
                 properties: {}
             }
         },
-        {
-            name: "shutdown_response",
-            description: "Respond to a shutdown request. Approve to shut down, reject to keep working.",
-            input_schema: {
-                type: "object" as const,
-                properties: {
-                    request_id: { type: "string" },
-                    approve: { type: "boolean" },
-                    reason: { type: "string" }
-                },
-                required: ["request_id", "approve"] as const
-            }
-        },
-        {
-            name: "plan_approval",
-            description: "Submit a plan for lead approval. Provide plan text.",
-            input_schema: {
-                type: "object" as const,
-                properties: {
-                    plan: { type: "string" }
-                },
-                required: ["plan"] as const
-            }
-        },
     ];
 
+    if (ENABLE_PROTOCOL_TOOLS) {
+        tools.push(
+            {
+                name: "shutdown_response",
+                description: "Respond to a shutdown request. Approve to shut down, reject to keep working.",
+                input_schema: {
+                    type: "object" as const,
+                    properties: {
+                        request_id: { type: "string" },
+                        approve: { type: "boolean" },
+                        reason: { type: "string" }
+                    },
+                    required: ["request_id", "approve"] as const
+                }
+            },
+            {
+                name: "plan_approval",
+                description: "Submit a plan for lead approval. Provide plan text.",
+                input_schema: {
+                    type: "object" as const,
+                    properties: {
+                        plan: { type: "string" }
+                    },
+                    required: ["plan"] as const
+                }
+            }
+        );
+    }
+
+    let shouldExit = false;
     // Run for up to 50 iterations
     for (let i = 0; i < 50; i++) {
         // Check inbox for new messages
@@ -402,7 +419,7 @@ async function teammateLoop(): Promise<void> {
                 model: MODEL,
                 system: SYSTEM,
                 messages: messages,
-                tools: TOOLS,
+                tools,
                 max_tokens: 8000,
             });
 
@@ -433,6 +450,14 @@ async function teammateLoop(): Promise<void> {
                         tool_use_id: block.id,
                         content: String(output),
                     });
+
+                    if (
+                        ENABLE_PROTOCOL_TOOLS &&
+                        block.name === "shutdown_response" &&
+                        Boolean((block.input as any)?.approve)
+                    ) {
+                        shouldExit = true;
+                    }
                 }
             }
 
@@ -440,6 +465,10 @@ async function teammateLoop(): Promise<void> {
                 role: "user",
                 content: results,
             });
+
+            if (shouldExit) {
+                break;
+            }
         } catch (error) {
             break;
         }
@@ -448,7 +477,8 @@ async function teammateLoop(): Promise<void> {
     // Notify main thread that teammate is done
     parentPort?.postMessage({
         type: "teammate_complete",
-        teammate: data.teammateName
+        teammate: data.teammateName,
+        final_status: shouldExit ? "shutdown" : "idle"
     });
 }
 

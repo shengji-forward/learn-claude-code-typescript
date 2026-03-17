@@ -1,123 +1,35 @@
-[English](./README.md) | [中文](./README-zh.md) | [日本語](./README-ja.md)
-# Learn Claude Code (TypeScript Edition) -- A nano Claude Code-like agent, built from 0 to 1
+> **Note**  
+> This repository is a TypeScript edition derived from the original Python project: [shareAI-lab/learn-claude-code](https://github.com/shareAI-lab/learn-claude-code).
+
+# Learn Claude Code (TypeScript Edition)
+
+A session-by-session TypeScript walkthrough for building a nano Claude Code-like coding agent from scratch.
 
 ```
-                    THE AGENT PATTERN
-                    =================
+                THE AGENT LOOP
+                ==============
 
-    User --> messages[] --> LLM --> response
-                                      |
-                            stop_reason == "tool_use"?
-                           /                          \
-                         yes                           no
-                          |                             |
-                    execute tools                    return text
-                    append results
-                    loop back -----------------> messages[]
-
-
-    That's the minimal loop. Every AI coding agent needs this loop.
-    Production agents add policy, permissions, and lifecycle layers.
+User -> messages[] -> LLM -> response
+                         |
+               stop_reason == "tool_use"?
+                     /              \
+                   yes               no
+                    |                |
+             execute tools       return text
+             append results
+             loop back -> messages[]
 ```
 
-**12 progressive sessions, from a simple loop to isolated autonomous execution.**
-**Each session adds one mechanism. Each mechanism has one motto.**
+This loop is the kernel. Every later session adds one mechanism around that kernel.
 
-> **s01** &nbsp; *"One loop & Bash is all you need"* &mdash; one tool + one loop = an agent
->
-> **s02** &nbsp; *"Adding a tool means adding one handler"* &mdash; the loop stays the same; new tools register into the dispatch map
->
-> **s03** &nbsp; *"An agent without a plan drifts"* &mdash; list the steps first, then execute; completion doubles
->
-> **s04** &nbsp; *"Break big tasks down; each subtask gets a clean context"* &mdash; subagents use independent messages[], keeping the main conversation clean
->
-> **s05** &nbsp; *"Load knowledge when you need it, not upfront"* &mdash; inject via tool_result, not the system prompt
->
-> **s06** &nbsp; *"Context will fill up; you need a way to make room"* &mdash; three-layer compression strategy for infinite sessions
->
-> **s07** &nbsp; *"Break big goals into small tasks, order them, persist to disk"* &mdash; a file-based task graph with dependencies, laying the foundation for multi-agent collaboration
->
-> **s08** &nbsp; *"Run slow operations in the background; the agent keeps thinking"* &mdash; daemon threads run commands, inject notifications on completion
->
-> **s09** &nbsp; *"When the task is too big for one, delegate to teammates"* &mdash; persistent teammates + async mailboxes
->
-> **s10** &nbsp; *"Teammates need shared communication rules"* &mdash; one request-response pattern drives all negotiation
->
-> **s11** &nbsp; *"Teammates scan the board and claim tasks themselves"* &mdash; no need for the lead to assign each one
->
-> **s12** &nbsp; *"Each works in its own directory, no interference"* &mdash; tasks manage goals, worktrees manage directories, bound by ID
+## What You Build
 
----
+- `s01-s02`: Core loop and tool dispatch
+- `s03-s06`: Planning, skill loading, and context durability
+- `s07-s08`: Persistent task graph and background execution
+- `s09-s12`: Team coordination, protocols, autonomous behavior, and worktree isolation
 
-## The Core Pattern
-
-```typescript
-async function agentLoop(messages: any[]): Promise<void> {
-  while (true) {
-    const response = await client.messages.create({
-      model: MODEL,
-      system: SYSTEM,
-      messages,
-      tools: TOOLS,
-    });
-
-    messages.push({ role: "assistant", content: response.content });
-
-    if (response.stop_reason !== "tool_use") return;
-
-    const results: any[] = [];
-    for (const block of response.content as any[]) {
-      if (block.type === "tool_use") {
-        const output = await TOOL_HANDLERS[block.name](block.input ?? {});
-        results.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: output,
-        });
-      }
-    }
-    messages.push({ role: "user", content: results });
-  }
-}
-```
-
-Every session layers one mechanism on top of this loop -- without changing the loop itself.
-
-## Scope (Important)
-
-This repository is a 0->1 learning project for building a nano Claude Code-like agent.
-It intentionally simplifies or omits several production mechanisms:
-
-- Full event/hook buses (for example PreToolUse, SessionStart/End, ConfigChange).  
-  s12 includes only a minimal append-only lifecycle event stream for teaching.
-- Rule-based permission governance and trust workflows
-- Session lifecycle controls (resume/fork) and advanced worktree lifecycle controls
-- Full MCP runtime details (transport/OAuth/resource subscribe/polling)
-
-Treat the team JSONL mailbox protocol in this repo as a teaching implementation, not a claim about any specific production internals.
-
-## Quick Start
-
-```sh
-git clone https://github.com/shengji-forward/learn-claude-code-typescript
-cd learn-claude-code-typescript
-npm install
-cp .env.example .env   # Edit .env with your ANTHROPIC_API_KEY
-
-npm run s01      # Start here
-npm run s12      # Full progression endpoint
-npm run s:full   # Capstone: all mechanisms combined
-```
-
-### Web Platform
-
-Interactive visualizations, step-through diagrams, source viewer, and documentation.
-
-```sh
-cd web && npm install && npm run dev   # http://localhost:3000
-```
-
-## Learning Path
+## Learning Roadmap
 
 ```
 Phase 1: THE LOOP                    Phase 2: PLANNING & KNOWLEDGE
@@ -140,7 +52,7 @@ s07  Tasks                   [8]     s09  Agent Teams             [9]
      file-based CRUD + deps graph         teammates + JSONL mailboxes
      |                                    |
 s08  Background Tasks        [6]     s10  Team Protocols          [12]
-     daemon threads + notify queue        shutdown + plan approval FSM
+     worker threads + notify queue        shutdown + plan approval FSM
                                           |
                                      s11  Autonomous Agents       [14]
                                           idle cycle + auto-claim
@@ -151,92 +63,100 @@ s08  Background Tasks        [6]     s10  Team Protocols          [12]
                                      [N] = number of tools
 ```
 
-## Architecture
+## Scope
+
+This repo is a teaching implementation, not a production agent runtime. It intentionally does **not** include:
+
+- Full lifecycle/hook buses
+- Full policy and trust governance
+- Session resume/fork orchestration
+- Complete MCP runtime behavior
+
+Use it to learn architecture and mechanism design in a small, readable codebase.
+
+## Quick Start
+
+```sh
+git clone https://github.com/shengji-forward/learn-claude-code-typescript
+cd learn-claude-code-typescript
+npm install
+cp .env.example .env
+# set ANTHROPIC_API_KEY and MODEL_ID in .env
+
+npm run s01
+```
+
+Run any session directly:
+
+```sh
+npm run s02
+npm run s03
+# ...
+npm run s12
+npm run s:full
+```
+
+## Learning Site
+
+The web app visualizes mechanisms, timelines, docs, and diffs.
+
+```sh
+npm --prefix web install
+npm --prefix web run dev
+# http://localhost:3000/en
+```
+
+## Session Map
+
+| Session | Topic | Key Addition |
+|---|---|---|
+| `s01` | The Agent Loop | Single-tool loop with `stop_reason` gate |
+| `s02` | Tool Use | Dispatch map and file-safe tools |
+| `s03` | TodoWrite | Explicit task planning with status tracking |
+| `s04` | Subagents | Isolated child context for delegated subtasks |
+| `s05` | Skills | On-demand knowledge injection from `SKILL.md` |
+| `s06` | Context Compact | Three-layer compression for long sessions |
+| `s07` | Task System | Disk-backed task graph with dependencies |
+| `s08` | Background Tasks | Non-blocking command execution with notifications |
+| `s09` | Agent Teams | Persistent teammates with JSONL inboxes |
+| `s10` | Team Protocols | `request_id`-based shutdown and plan review |
+| `s11` | Autonomous Agents | Idle polling + auto-claim behavior |
+| `s12` | Worktree + Task Isolation | Shared control plane + isolated execution lanes |
+
+## Repository Layout
 
 ```
 learn-claude-code-typescript/
-|
-|-- agents/                        # TypeScript reference implementations (s01-s12 + s_full capstone)
-|-- docs/{en,zh,ja}/               # Mental-model-first documentation (3 languages)
-|-- web/                           # Interactive learning platform (Next.js)
-|-- skills/                        # Skill files for s05
-+-- .github/workflows/             # CI workflows (typecheck/build/test)
+├── agents/                 # TypeScript session implementations (s01-s12 + s_full)
+├── docs/en/                # English learning docs for each session
+├── web/                    # Next.js learning interface (/en/...)
+└── skills/                 # Skill files used in s05
 ```
 
-## Documentation
+## Docs
 
-Mental-model-first: problem, solution, ASCII diagram, minimal code.
-Available in [English](./docs/en/) | [中文](./docs/zh/) | [日本語](./docs/ja/).
+- [s01 The Agent Loop](./docs/en/s01-the-agent-loop.md)
+- [s02 Tool Use](./docs/en/s02-tool-use.md)
+- [s03 TodoWrite](./docs/en/s03-todo-write.md)
+- [s04 Subagents](./docs/en/s04-subagent.md)
+- [s05 Skill Loading](./docs/en/s05-skill-loading.md)
+- [s06 Context Compact](./docs/en/s06-context-compact.md)
+- [s07 Task System](./docs/en/s07-task-system.md)
+- [s08 Background Tasks](./docs/en/s08-background-tasks.md)
+- [s09 Agent Teams](./docs/en/s09-agent-teams.md)
+- [s10 Team Protocols](./docs/en/s10-team-protocols.md)
+- [s11 Autonomous Agents](./docs/en/s11-autonomous-agents.md)
+- [s12 Worktree Task Isolation](./docs/en/s12-worktree-task-isolation.md)
 
-| Session | Topic | Motto |
-|---------|-------|-------|
-| [s01](./docs/en/s01-the-agent-loop.md) | The Agent Loop | *One loop & Bash is all you need* |
-| [s02](./docs/en/s02-tool-use.md) | Tool Use | *Adding a tool means adding one handler* |
-| [s03](./docs/en/s03-todo-write.md) | TodoWrite | *An agent without a plan drifts* |
-| [s04](./docs/en/s04-subagent.md) | Subagents | *Break big tasks down; each subtask gets a clean context* |
-| [s05](./docs/en/s05-skill-loading.md) | Skills | *Load knowledge when you need it, not upfront* |
-| [s06](./docs/en/s06-context-compact.md) | Context Compact | *Context will fill up; you need a way to make room* |
-| [s07](./docs/en/s07-task-system.md) | Tasks | *Break big goals into small tasks, order them, persist to disk* |
-| [s08](./docs/en/s08-background-tasks.md) | Background Tasks | *Run slow operations in the background; the agent keeps thinking* |
-| [s09](./docs/en/s09-agent-teams.md) | Agent Teams | *When the task is too big for one, delegate to teammates* |
-| [s10](./docs/en/s10-team-protocols.md) | Team Protocols | *Teammates need shared communication rules* |
-| [s11](./docs/en/s11-autonomous-agents.md) | Autonomous Agents | *Teammates scan the board and claim tasks themselves* |
-| [s12](./docs/en/s12-worktree-task-isolation.md) | Worktree + Task Isolation | *Each works in its own directory, no interference* |
+## Validation Commands
 
-## What's Next -- from understanding to shipping
-
-After the 12 sessions you understand how an agent works inside out. Two ways to put that knowledge to work:
-
-### Kode Agent CLI -- Open-Source Coding Agent CLI
-
-> `npm i -g @shareai-lab/kode`
-
-Skill & LSP support, Windows-ready, pluggable with GLM / MiniMax / DeepSeek and other open models. Install and go.
-
-GitHub: **[shareAI-lab/Kode-cli](https://github.com/shareAI-lab/Kode-cli)**
-
-### Kode Agent SDK -- Embed Agent Capabilities in Your App
-
-The official Claude Code Agent SDK communicates with a full CLI process under the hood -- each concurrent user means a separate terminal process. Kode SDK is a standalone library with no per-user process overhead, embeddable in backends, browser extensions, embedded devices, or any runtime.
-
-GitHub: **[shareAI-lab/Kode-agent-sdk](https://github.com/shareAI-lab/Kode-agent-sdk)**
-
----
-
-## Sister Repo: from *on-demand sessions* to *always-on assistant*
-
-The agent this repo teaches is **use-and-discard** -- open a terminal, give it a task, close when done, next session starts blank. That is the Claude Code model.
-
-[OpenClaw](https://github.com/openclaw/openclaw) proved another possibility: on top of the same agent core, two mechanisms turn the agent from "poke it to make it move" into "it wakes up every 30 seconds to look for work":
-
-- **Heartbeat** -- every 30s the system sends the agent a message to check if there is anything to do. Nothing? Go back to sleep. Something? Act immediately.
-- **Cron** -- the agent can schedule its own future tasks, executed automatically when the time comes.
-
-Add multi-channel IM routing (WhatsApp / Telegram / Slack / Discord, 13+ platforms), persistent context memory, and a Soul personality system, and the agent goes from a disposable tool to an always-on personal AI assistant.
-
-**[claw0](https://github.com/shareAI-lab/claw0)** is our companion teaching repo that deconstructs these mechanisms from scratch:
-
+```sh
+npm run type-check
+npm run build
+npm --prefix web run extract
+npm --prefix web run build
 ```
-claw agent = agent core + heartbeat + cron + IM chat + memory + soul
-```
-
-```
-learn-claude-code                   claw0
-(agent runtime core:                (proactive always-on assistant:
- loop, tools, planning,              heartbeat, cron, IM channels,
- teams, worktree isolation)          memory, soul personality)
-```
-
-## About
-<img width="260" src="https://github.com/user-attachments/assets/fe8b852b-97da-4061-a467-9694906b5edf" /><br>
-
-Scan with Wechat to fellow us,  
-or fellow on X: [shareAI-Lab](https://x.com/baicai003)  
 
 ## License
 
 MIT
-
----
-
-**The model is the agent. Our job is to give it tools and stay out of the way.**

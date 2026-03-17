@@ -65,7 +65,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { config } from "dotenv";
 import { promises as fs } from "fs";
 import * as path from "path";
-import { exec } from "child_process";
+import { exec, execSync } from "child_process";
 import { promisify } from "util";
 import * as readline from "readline";
 
@@ -80,45 +80,28 @@ const WORKDIR = process.cwd();
 const client = new Anthropic({
     baseURL: process.env.ANTHROPIC_BASE_URL,
 });
-const MODEL = process.env.MODEL_ID || "claude-sonnet-4-6";
+const MODEL = process.env.MODEL_ID ?? (() => {
+    throw new Error("MODEL_ID environment variable is required.");
+})();
 
 const execAsync = promisify(exec);
 
-/**
- * Detect git repository root
- * TypeScript: Async function using git command
- * Python: Synchronous subprocess.run()
- */
-async function detectRepoRoot(cwd: string): Promise<string | null> {
+function detectRepoRoot(cwd: string): string | null {
     try {
-        const { stdout } = await execAsync("git rev-parse --show-toplevel", {
+        const stdout = execSync("git rev-parse --show-toplevel", {
             cwd,
+            encoding: "utf-8",
             timeout: 10000,
+            stdio: ["ignore", "pipe", "ignore"],
         });
         const root = stdout.trim();
-        // Verify root exists
-        try {
-            await fs.access(root);
-            return root;
-        } catch {
-            return null;
-        }
-    } catch (error) {
+        return root.length > 0 ? root : null;
+    } catch {
         return null;
     }
 }
 
-/**
- * REPO_ROOT: Git repository root or current directory
- */
-let REPO_ROOT = WORKDIR;
-detectRepoRoot(WORKDIR).then(root => {
-    if (root) {
-        REPO_ROOT = root;
-    }
-}).catch(() => {
-    // Keep WORKDIR as default
-});
+const REPO_ROOT = detectRepoRoot(WORKDIR) || WORKDIR;
 
 const SYSTEM = `You are a coding agent at ${WORKDIR}. Use task + worktree tools for multi-task work. For parallel or risky changes: create tasks, allocate worktree lanes, run commands in those lanes, then choose keep/remove for closeout. Use worktree_events when you need lifecycle visibility.`;
 
@@ -556,14 +539,18 @@ class WorktreeManager {
      */
     private async isGitRepo(): Promise<boolean> {
         try {
-            await execAsync("git rev-parse --is-inside-work-tree", {
+            const { stdout } = await execAsync("git rev-parse --is-inside-work-tree", {
                 cwd: this.repoRoot,
                 timeout: 10000,
             });
-            return true;
+            return stdout.trim() === "true";
         } catch {
             return false;
         }
+    }
+
+    isGitAvailable(): boolean {
+        return this.gitAvailable;
     }
 
     /**
@@ -583,7 +570,7 @@ class WorktreeManager {
             });
             return (stdout + stderr).trim() || "(no output)";
         } catch (error: any) {
-            const msg = (error.stdout + error.stderr).trim();
+            const msg = `${error?.stdout || ""}${error?.stderr || ""}`.trim();
             throw new Error(msg || `git ${args.join(" ")} failed`);
         }
     }
@@ -1016,6 +1003,16 @@ async function runEdit(filePath: string, oldText: string, newText: string): Prom
 // Type for tool handler functions
 type ToolHandler = (input: any) => Promise<string> | string;
 
+function parseTaskStatus(status?: string): TaskStatus | undefined {
+    if (status === undefined) {
+        return undefined;
+    }
+    if (Object.values(TaskStatus).includes(status as TaskStatus)) {
+        return status as TaskStatus;
+    }
+    throw new Error(`Invalid status: ${status}`);
+}
+
 /**
  * Tool handlers map
  * TypeScript: Type-safe object with handler functions
@@ -1031,7 +1028,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
     task_get: async (input) => await TASKS.get(input.task_id),
     task_update: async (input) => await TASKS.update(
         input.task_id,
-        input.status ? TaskStatus[input.status as keyof typeof TaskStatus] : undefined,
+        parseTaskStatus(input.status),
         input.owner
     ),
     task_bind_worktree: async (input) => await TASKS.bindWorktree(
@@ -1318,14 +1315,8 @@ async function main(): Promise<void> {
     await EVENTS.init();
     await WORKTREES.init();
 
-    // Detect repo root asynchronously
-    const repoRoot = await detectRepoRoot(WORKDIR);
-    if (repoRoot) {
-        REPO_ROOT = repoRoot;
-    }
-
     console.log(`Repo root for s12: ${REPO_ROOT}`);
-    if (!(await WORKTREES["gitAvailable"])) {
+    if (!WORKTREES.isGitAvailable()) {
         console.log("Note: Not in a git repo. worktree_* tools will return errors.");
     }
 

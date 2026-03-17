@@ -67,7 +67,9 @@ const client = new Anthropic({
 });
 
 // TypeScript: const with type assertion vs Python: simple variable
-const MODEL = process.env.MODEL_ID || "claude-sonnet-4-6";
+const MODEL = process.env.MODEL_ID ?? (() => {
+    throw new Error("MODEL_ID environment variable is required.");
+})();
 
 // TypeScript: Template literals work the same as Python f-strings
 const SYSTEM = `You are a coding agent at ${process.cwd()}. Use bash to solve tasks. Act, don't explain.`;

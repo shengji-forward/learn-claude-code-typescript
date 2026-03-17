@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTranslations, useLocale } from "@/lib/i18n";
+import { useTranslations } from "@/lib/i18n";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,8 +24,6 @@ interface Decision {
   title: string;
   description: string;
   alternatives: string;
-  zh?: { title: string; description: string };
-  ja?: { title: string; description: string };
 }
 
 interface AnnotationFile {
@@ -54,19 +52,11 @@ interface DesignDecisionsProps {
 
 function DecisionCard({
   decision,
-  locale,
 }: {
   decision: Decision;
-  locale: string;
 }) {
   const [open, setOpen] = useState(false);
   const t = useTranslations("version");
-
-  const localized =
-    locale !== "en" ? (decision as unknown as Record<string, unknown>)[locale] as { title?: string; description?: string } | undefined : undefined;
-
-  const title = localized?.title || decision.title;
-  const description = localized?.description || decision.description;
 
   return (
     <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
@@ -75,7 +65,7 @@ function DecisionCard({
         className="flex w-full items-center justify-between px-4 py-3 text-left"
       >
         <span className="pr-4 text-sm font-semibold text-zinc-900 dark:text-white">
-          {title}
+          {decision.title}
         </span>
         <ChevronDown
           size={16}
@@ -97,7 +87,7 @@ function DecisionCard({
           >
             <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
               <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                {description}
+                {decision.description}
               </p>
 
               {decision.alternatives && (
@@ -120,7 +110,6 @@ function DecisionCard({
 
 export function DesignDecisions({ version }: DesignDecisionsProps) {
   const t = useTranslations("version");
-  const locale = useLocale();
 
   const annotations = ANNOTATIONS[version];
   if (!annotations || annotations.decisions.length === 0) {
@@ -138,7 +127,7 @@ export function DesignDecisions({ version }: DesignDecisionsProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
           >
-            <DecisionCard decision={decision} locale={locale} />
+            <DecisionCard decision={decision} />
           </motion.div>
         ))}
       </div>

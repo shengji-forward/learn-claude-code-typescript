@@ -77,7 +77,9 @@ const SKILLS_DIR = path.join(WORKDIR, "skills");
 const client = new Anthropic({
     baseURL: process.env.ANTHROPIC_BASE_URL,
 });
-const MODEL = process.env.MODEL_ID || "claude-sonnet-4-6";
+const MODEL = process.env.MODEL_ID ?? (() => {
+    throw new Error("MODEL_ID environment variable is required.");
+})();
 
 /**
  * Skill metadata interface
