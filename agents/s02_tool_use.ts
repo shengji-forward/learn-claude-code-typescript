@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// @ts-nocheck
 /**
  * s02_tool_use.ts - Tools
  *

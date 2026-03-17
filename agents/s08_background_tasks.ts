@@ -58,7 +58,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "dotenv";
-import { promises as fs } from "fs";
+import { existsSync, promises as fs } from "fs";
 import * as path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -141,7 +141,9 @@ class BackgroundManager {
         });
 
         // Create worker thread
-        const workerPath = path.join(__dirname, "..", "workers", "task-worker.js");
+        const jsWorkerPath = path.join(__dirname, "task-worker.js");
+        const tsWorkerPath = path.join(__dirname, "task-worker.ts");
+        const workerPath = existsSync(jsWorkerPath) ? jsWorkerPath : tsWorkerPath;
         const worker = new Worker(workerPath, {
             workerData: {
                 taskId,
@@ -149,6 +151,9 @@ class BackgroundManager {
                 workdir: WORKDIR,
                 timeout: 300000,
             },
+            ...(workerPath.endsWith(".ts")
+                ? { execArgv: ["--loader", "ts-node/esm"] }
+                : {}),
         });
 
         // Handle worker messages

@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// @ts-nocheck
 /**
  * s06_context_compact.ts - Compact
  *

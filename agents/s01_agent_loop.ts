@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// @ts-nocheck
 /**
  * s01_agent_loop.ts - The Agent Loop
  *

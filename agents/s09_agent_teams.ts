@@ -76,7 +76,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "dotenv";
-import { promises as fs } from "fs";
+import { existsSync, promises as fs } from "fs";
 import * as path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -352,7 +352,9 @@ class TeammateManager {
         await this.saveConfig();
 
         // Create worker for teammate
-        const workerPath = path.join(__dirname, "..", "workers", "teammate-worker.js");
+        const jsWorkerPath = path.join(__dirname, "teammate-worker.js");
+        const tsWorkerPath = path.join(__dirname, "teammate-worker.ts");
+        const workerPath = existsSync(jsWorkerPath) ? jsWorkerPath : tsWorkerPath;
         const worker = new Worker(workerPath, {
             workerData: {
                 teammateName: name,
@@ -362,7 +364,10 @@ class TeammateManager {
                 inboxDir: INBOX_DIR,
                 modelId: MODEL,
                 apiBase: process.env.ANTHROPIC_BASE_URL,
-            }
+            },
+            ...(workerPath.endsWith(".ts")
+                ? { execArgv: ["--loader", "ts-node/esm"] }
+                : {}),
         });
 
         // Handle worker completion
@@ -560,6 +565,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
         input.content,
         input.msg_type || "message"
     ),
+    read_inbox: async () => JSON.stringify(await BUS.readInbox("lead"), null, 2),
     broadcast: async (input) => await BUS.broadcast(
         "lead",
         input.content,
@@ -657,6 +663,14 @@ const TOOLS = [
         }
     },
     {
+        name: "read_inbox",
+        description: "Read and drain the lead's inbox.",
+        input_schema: {
+            type: "object" as const,
+            properties: {}
+        }
+    },
+    {
         name: "broadcast",
         description: "Send a message to all teammates.",
         input_schema: {
@@ -674,6 +688,18 @@ const TOOLS = [
  */
 async function agentLoop(messages: any[]): Promise<void> {
     while (true) {
+        const inbox = await BUS.readInbox("lead");
+        if (inbox.length > 0) {
+            messages.push({
+                role: "user",
+                content: `<inbox>${JSON.stringify(inbox, null, 2)}</inbox>`,
+            });
+            messages.push({
+                role: "assistant",
+                content: "Noted inbox messages.",
+            });
+        }
+
         const response = await client.messages.create({
             model: MODEL,
             system: SYSTEM,

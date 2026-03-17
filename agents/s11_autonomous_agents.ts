@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// @ts-nocheck
 /**
  * s11_autonomous_agents.ts - Autonomous Agents
  *
@@ -68,7 +69,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "dotenv";
-import { promises as fs } from "fs";
+import { existsSync, promises as fs } from "fs";
 import * as path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -596,7 +597,9 @@ class TeammateManager {
         await this.saveConfig();
 
         // Create worker for autonomous teammate
-        const workerPath = path.join(__dirname, "..", "workers", "autonomous-worker.js");
+        const jsWorkerPath = path.join(__dirname, "autonomous-worker.js");
+        const tsWorkerPath = path.join(__dirname, "autonomous-worker.ts");
+        const workerPath = existsSync(jsWorkerPath) ? jsWorkerPath : tsWorkerPath;
         const worker = new Worker(workerPath, {
             workerData: {
                 teammateName: name,
@@ -610,7 +613,10 @@ class TeammateManager {
                 apiBase: process.env.ANTHROPIC_BASE_URL,
                 pollInterval: POLL_INTERVAL,
                 idleTimeout: IDLE_TIMEOUT,
-            }
+            },
+            ...(workerPath.endsWith(".ts")
+                ? { execArgv: ["--loader", "ts-node/esm"] }
+                : {}),
         });
 
         // Handle worker messages

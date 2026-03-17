@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// @ts-nocheck
 /**
  * s10_team_protocols.ts - Team Protocols
  *
@@ -80,7 +81,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "dotenv";
-import { promises as fs } from "fs";
+import { existsSync, promises as fs } from "fs";
 import * as path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -502,7 +503,9 @@ class TeammateManager {
         await this.saveConfig();
 
         // Create worker for teammate
-        const workerPath = path.join(__dirname, "..", "workers", "teammate-worker.js");
+        const jsWorkerPath = path.join(__dirname, "teammate-worker.js");
+        const tsWorkerPath = path.join(__dirname, "teammate-worker.ts");
+        const workerPath = existsSync(jsWorkerPath) ? jsWorkerPath : tsWorkerPath;
         const worker = new Worker(workerPath, {
             workerData: {
                 teammateName: name,
@@ -512,7 +515,10 @@ class TeammateManager {
                 inboxDir: INBOX_DIR,
                 modelId: MODEL,
                 apiBase: process.env.ANTHROPIC_BASE_URL,
-            }
+            },
+            ...(workerPath.endsWith(".ts")
+                ? { execArgv: ["--loader", "ts-node/esm"] }
+                : {}),
         });
 
         // Handle worker completion

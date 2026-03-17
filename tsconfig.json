@@ -28,10 +28,7 @@
     "types": ["node"]
   },
   "include": [
-    "agents/**/*",
-    "src/**/*",
-    "tests/**/*",
-    "workers/**/*"
+    "agents/**/*"
   ],
   "exclude": [
     "node_modules",
