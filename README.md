@@ -264,7 +264,7 @@ Treat the team JSONL mailbox protocol in this repo as a teaching implementation,
 ## Quick Start
 
 ```sh
-git clone https://github.com/shareAI-lab/learn-claude-code-typescript
+git clone https://github.com/shengji-forward/learn-claude-code-typescript
 cd learn-claude-code-typescript
 npm install
 cp .env.example .env   # Edit .env with your ANTHROPIC_API_KEY
