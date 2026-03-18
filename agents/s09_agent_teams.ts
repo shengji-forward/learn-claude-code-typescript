@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: multi-agent orchestration -- teammates with async mailboxes.
 /**
  * s09_agent_teams.ts - Agent Teams
  *

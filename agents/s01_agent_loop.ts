@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: the loop -- the model's first connection to the real world.
 // @ts-nocheck
 /**
  * s01_agent_loop.ts - The Agent Loop

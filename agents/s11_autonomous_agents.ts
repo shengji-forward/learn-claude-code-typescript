@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: self-organization -- idle polling and automatic task claiming.
 // @ts-nocheck
 /**
  * s11_autonomous_agents.ts - Autonomous Agents

@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: planning -- keeping the model on course without scripting the route.
 // @ts-nocheck
 /**
  * s03_todo_write.ts - TodoWrite

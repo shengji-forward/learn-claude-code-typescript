@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: coordination patterns -- request-response protocols for agent negotiation.
 // @ts-nocheck
 /**
  * s10_team_protocols.ts - Team Protocols

@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: tool dispatch -- expanding what the model can reach.
 // @ts-nocheck
 /**
  * s02_tool_use.ts - Tools

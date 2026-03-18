@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: context isolation -- protecting the model's clarity of thought.
 /**
  * s04_subagent.ts - Subagent
  *

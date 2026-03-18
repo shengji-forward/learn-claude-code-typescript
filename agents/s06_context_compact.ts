@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: context durability -- enabling infinite sessions through compression.
 // @ts-nocheck
 /**
  * s06_context_compact.ts - Compact

@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: parallelism -- non-blocking execution while the agent keeps thinking.
 /**
  * s08_background_tasks.ts - Background Tasks
  *

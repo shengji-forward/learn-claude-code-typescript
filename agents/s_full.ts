@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: complete integration -- all mechanisms, one unified system.
 // @ts-nocheck
 /**
  * s_full.ts - Full Reference Agent

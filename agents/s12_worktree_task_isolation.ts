@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: parallel execution lanes -- isolated workspaces bound by task IDs.
 /**
  * s12_worktree_task_isolation.ts - Worktree + Task Isolation
  *

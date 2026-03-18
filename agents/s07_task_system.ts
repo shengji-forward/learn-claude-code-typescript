@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: persistent goals -- task graph that survives beyond single conversations.
 // @ts-nocheck
 /**
  * s07_task_system.ts - Tasks

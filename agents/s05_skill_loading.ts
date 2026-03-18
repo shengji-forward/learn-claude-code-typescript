@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// Harness: on-demand knowledge -- domain expertise, loaded when the model asks.
 // @ts-nocheck
 /**
  * s05_skill_loading.ts - Skills
