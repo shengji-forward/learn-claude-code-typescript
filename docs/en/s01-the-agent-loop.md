@@ -8,7 +8,7 @@
 
 ## Problem
 
-An LLM can reason, but it cannot directly touch files, run commands, or inspect your workspace state. Without an execution loop, a human has to manually bridge every tool call.
+A language model can reason about code, but it can't *touch* the real world -- can't read files, run tests, or check errors. Without a loop, every tool call requires you to manually copy-paste results back. You become the loop.
 
 ## Solution
 
@@ -23,7 +23,7 @@ An LLM can reason, but it cannot directly touch files, run commands, or inspect 
                     (repeat until stop_reason != "tool_use")
 ```
 
-The loop keeps running until the assistant stops requesting tools.
+One exit condition controls the entire flow. The loop runs until the model stops calling tools.
 
 ## How It Works
 
@@ -33,7 +33,7 @@ The loop keeps running until the assistant stops requesting tools.
 messages.push({ role: "user", content: query });
 ```
 
-2. Call the model with `messages` and `tools`.
+1. Call the model with `messages` and `tools`.
 
 ```typescript
 const response = await client.messages.create({
@@ -45,14 +45,14 @@ const response = await client.messages.create({
 });
 ```
 
-3. Append assistant output and exit when no tool call is requested.
+1. Append assistant output and exit when no tool call is requested.
 
 ```typescript
 messages.push({ role: "assistant", content: response.content });
 if (response.stop_reason !== "tool_use") return;
 ```
 
-4. Execute each tool call, return `tool_result`, and continue.
+1. Execute each tool call, return `tool_result`, and continue.
 
 ```typescript
 const results = [];
@@ -64,13 +64,55 @@ for (const block of response.content) {
 messages.push({ role: "user", content: results });
 ```
 
+---
+
+**Assembled into one function:**
+
+```typescript
+// Assembled into one function:
+function agentLoop(query: string) {
+    const messages = [{ role: "user", content: query }];
+    while (true) {
+        const response = await client.messages.create({
+            model: MODEL,
+            system: SYSTEM,
+            messages: messages,
+            tools: TOOLS,
+            max_tokens: 8000,
+        });
+        messages.push({ role: "assistant", content: response.content });
+
+        if (response.stop_reason !== "tool_use") {
+            return;
+        }
+
+        const results = [];
+        for (const block of response.content) {
+            if (block.type === "tool_use") {
+                const output = await runBash(block.input["command"]);
+                results.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content: output,
+                });
+            }
+        }
+        messages.push({ role: "user", content: results });
+    }
+}
+```
+
+That's the entire agent in under 30 lines. Everything else in this course layers on top -- without changing the loop.
+
 ## What Changed
 
-| Component | Before | After |
-|---|---|---|
-| Tools | none | `bash` |
-| Control flow | none | `while` loop with `stop_reason` gate |
-| Conversation state | none | persistent `messages[]` |
+| Component     | Before     | After                          |
+|---------------|------------|--------------------------------|
+| Agent loop    | (none)     | `while True` + stop_reason     |
+| Tools         | (none)     | `bash` (one tool)              |
+| Messages      | (none)     | Accumulating list              |
+| Control flow  | (none)     | `stop_reason != "tool_use"`    |
+
 
 ## Try It
 
@@ -78,6 +120,8 @@ messages.push({ role: "user", content: results });
 npm run s01
 ```
 
-- Create `hello.ts` and verify content.
-- Ask for current git branch.
-- Run a small command and confirm output.
+1. `Create a file called hello.ts that prints "Hello, World!"`
+2. `List all TypeScript files in this directory`
+3. `What is the current git branch?`
+4. `Create a directory called test_output and write 3 files in it`
+
