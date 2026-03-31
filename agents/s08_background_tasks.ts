@@ -476,10 +476,6 @@ async function agentLoop(messages: any[]): Promise<void> {
                 role: "user",
                 content: `<background-results>\n${notifText}\n</background-results>`
             });
-            messages.push({
-                role: "assistant",
-                content: "Noted background results."
-            });
         }
 
         const response = await client.messages.create({
@@ -508,7 +504,8 @@ async function agentLoop(messages: any[]): Promise<void> {
                         ? await handler(block.input)
                         : `Unknown tool: ${block.name}`;
 
-                    console.log(`> ${block.name}: ${String(output).substring(0, 200)}`);
+                    console.log(`> ${block.name}:`);
+                    console.log(String(output).substring(0, 200));
 
                     results.push({
                         type: "tool_result",

@@ -134,7 +134,6 @@ interface Task {
     status: "pending" | "in_progress" | "completed" | "deleted";
     owner: string | null;
     blockedBy: number[];
-    blocks: number[];
 }
 
 interface BackgroundTask {
@@ -624,8 +623,10 @@ function estimateTokens(messages: Message[]): number {
  * Python: Direct mutation with for loops and isinstance checks
  * TypeScript: Type-safe mutation with type guards
  */
+const PRESERVE_RESULT_TOOLS = new Set(["read_file"]);
+
 function microcompact(messages: Message[]): void {
-    const toClear: { content: string }[] = [];
+    const toClear: { content: string; tool_use_id?: string }[] = [];
 
     for (const msg of messages) {
         if (msg.role === "user" && Array.isArray(msg.content)) {
@@ -645,9 +646,25 @@ function microcompact(messages: Message[]): void {
         return;
     }
 
+    // Build tool_name map by matching tool_use_id in prior assistant messages
+    const toolNameMap = new Map<string, string>();
+    for (const msg of messages) {
+        if (msg.role === "assistant" && Array.isArray(msg.content)) {
+            for (const block of msg.content as any[]) {
+                if (block.type === "tool_use" && block.id && block.name) {
+                    toolNameMap.set(block.id, block.name);
+                }
+            }
+        }
+    }
+
     for (const part of toClear.slice(0, -3)) {
         if (typeof part.content === "string" && part.content.length > 100) {
-            part.content = "[cleared]";
+            const toolId = part.tool_use_id || "";
+            const toolName = toolNameMap.get(toolId) || "unknown";
+            // Preserve read_file outputs — they are reference material
+            if (PRESERVE_RESULT_TOOLS.has(toolName)) continue;
+            part.content = `[Previous: used ${toolName}]`;
         }
     }
 }
@@ -675,7 +692,7 @@ async function autoCompact(messages: Message[]): Promise<Message[]> {
 
     const convText = JSON.stringify(messages, (_, v) =>
         v?.toString?.() ?? v
-    ).slice(0, 80000);
+    ).slice(-80000);
 
     const summaryResponse = await client.messages.create({
         model: MODEL,
@@ -695,10 +712,6 @@ async function autoCompact(messages: Message[]): Promise<Message[]> {
         {
             role: "user",
             content: `[Compressed. Transcript: ${transcriptPath}]\n${summary}`,
-        },
-        {
-            role: "assistant",
-            content: "Understood. Continuing with summary context.",
         },
     ];
 }
@@ -759,7 +772,6 @@ class TaskManager {
             status: "pending",
             owner: null,
             blockedBy: [],
-            blocks: [],
         };
         await this.save(task);
         return JSON.stringify(task, null, 2);
@@ -774,7 +786,7 @@ class TaskManager {
         taskId: number,
         status?: Task["status"],
         addBlockedBy?: number[],
-        addBlocks?: number[]
+        removeBlockedBy?: number[]
     ): Promise<string> {
         const task = await this.load(taskId);
 
@@ -813,8 +825,10 @@ class TaskManager {
         if (addBlockedBy) {
             task.blockedBy = Array.from(new Set([...task.blockedBy, ...addBlockedBy]));
         }
-        if (addBlocks) {
-            task.blocks = Array.from(new Set([...task.blocks, ...addBlocks]));
+        if (removeBlockedBy) {
+            task.blockedBy = task.blockedBy.filter(
+                (id) => !removeBlockedBy.includes(id)
+            );
         }
 
         await this.save(task);
@@ -866,6 +880,15 @@ class TaskManager {
 
     async claim(taskId: number, owner: string): Promise<string> {
         const task = await this.load(taskId);
+        if (task.owner) {
+            return `Error: Task ${taskId} has already been claimed by ${task.owner}`;
+        }
+        if (task.status !== "pending") {
+            return `Error: Task ${taskId} cannot be claimed because its status is '${task.status}'`;
+        }
+        if (task.blockedBy.length > 0) {
+            return `Error: Task ${taskId} is blocked by other task(s) and cannot be claimed yet`;
+        }
         task.owner = owner;
         task.status = "in_progress";
         await this.save(task);
@@ -1542,7 +1565,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
             input.task_id as number,
             input.status as Task["status"] | undefined,
             input.add_blocked_by as number[] | undefined,
-            input.add_blocks as number[] | undefined
+            input.remove_blocked_by as number[] | undefined
         ),
     task_list: async () => await TASK_MGR.listAll(),
     spawn_teammate: async (input) =>
@@ -1588,7 +1611,7 @@ const TOOLS = [
     { name: "check_background", description: "Check background task status.", input_schema: { type: "object" as const, properties: { task_id: { type: "string" as const } } } },
     { name: "task_create", description: "Create a persistent file task.", input_schema: { type: "object" as const, properties: { subject: { type: "string" as const }, description: { type: "string" as const } }, required: ["subject"] } },
     { name: "task_get", description: "Get task details by ID.", input_schema: { type: "object" as const, properties: { task_id: { type: "integer" as const } }, required: ["task_id"] } },
-    { name: "task_update", description: "Update task status or dependencies.", input_schema: { type: "object" as const, properties: { task_id: { type: "integer" as const }, status: { type: "string" as const, enum: ["pending", "in_progress", "completed", "deleted"] }, add_blocked_by: { type: "array" as const, items: { type: "integer" as const } }, add_blocks: { type: "array" as const, items: { type: "integer" as const } } }, required: ["task_id"] } },
+    { name: "task_update", description: "Update task status or dependencies.", input_schema: { type: "object" as const, properties: { task_id: { type: "integer" as const }, status: { type: "string" as const, enum: ["pending", "in_progress", "completed", "deleted"] }, add_blocked_by: { type: "array" as const, items: { type: "integer" as const } }, remove_blocked_by: { type: "array" as const, items: { type: "integer" as const } } }, required: ["task_id"] } },
     { name: "task_list", description: "List all tasks.", input_schema: { type: "object" as const, properties: {} } },
     { name: "spawn_teammate", description: "Spawn a persistent autonomous teammate.", input_schema: { type: "object" as const, properties: { name: { type: "string" as const }, role: { type: "string" as const }, prompt: { type: "string" as const } }, required: ["name", "role", "prompt"] } },
     { name: "list_teammates", description: "List all teammates.", input_schema: { type: "object" as const, properties: {} } },
@@ -1628,10 +1651,6 @@ async function agentLoop(messages: Message[]): Promise<void> {
                 role: "user",
                 content: `<background-results>\n${txt}\n</background-results>`,
             });
-            messages.push({
-                role: "assistant",
-                content: "Noted background results.",
-            });
         }
 
         // s10: check lead inbox
@@ -1640,10 +1659,6 @@ async function agentLoop(messages: Message[]): Promise<void> {
             messages.push({
                 role: "user",
                 content: `<inbox>${JSON.stringify(inbox, null, 2)}</inbox>`,
-            });
-            messages.push({
-                role: "assistant",
-                content: "Noted inbox messages.",
             });
         }
 
@@ -1687,7 +1702,8 @@ async function agentLoop(messages: Message[]): Promise<void> {
                     output = `Error: ${error instanceof Error ? error.message : "Unknown"}`;
                 }
 
-                console.log(`> ${block.name}: ${output.slice(0, 200)}`);
+                console.log(`> ${block.name}:`);
+                console.log(output.slice(0, 200));
                 results.push({
                     type: "tool_result",
                     tool_use_id: block.id,
@@ -1703,7 +1719,7 @@ async function agentLoop(messages: Message[]): Promise<void> {
         // s03: nag reminder (only when todo workflow is active)
         roundsWithoutTodo = usedTodo ? 0 : roundsWithoutTodo + 1;
         if (TODO.hasOpenItems() && roundsWithoutTodo >= 3) {
-            results.unshift({
+            results.push({
                 type: "text",
                 text: "<reminder>Update your todos.</reminder>",
             });
@@ -1715,6 +1731,7 @@ async function agentLoop(messages: Message[]): Promise<void> {
         if (manualCompress) {
             console.log("[manual compact]");
             messages.splice(0, messages.length, ...await autoCompact(messages));
+            return;
         }
     }
 }

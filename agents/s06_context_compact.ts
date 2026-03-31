@@ -86,6 +86,7 @@ const SYSTEM = `You are a coding agent at ${WORKDIR}. Use tools to solve tasks.`
 const THRESHOLD = 50000;
 const TRANSCRIPT_DIR = path.join(WORKDIR, ".transcripts");
 const KEEP_RECENT = 3;
+const PRESERVE_RESULT_TOOLS = new Set(["read_file"]);
 
 /**
  * Rough token count: ~4 chars per token
@@ -171,17 +172,17 @@ function microCompact(messages: Message[]): Message[] {
 
     for (const { result } of toClear) {
         if (
-            typeof result.content === "string" &&
-            result.content.length > 100
+            typeof result.content !== "string" ||
+            result.content.length <= 100
         ) {
-            const toolId = result.tool_use_id;
-            const toolName = toolNameMap.get(toolId) || "unknown";
-
-            // Replace with placeholder
-            // TypeScript: Direct property mutation
-            // Python: result["content"] = f"[Previous: used {tool_name}]"
-            result.content = `[Previous: used ${toolName}]`;
+            continue;
         }
+        const toolId = result.tool_use_id;
+        const toolName = toolNameMap.get(toolId) || "unknown";
+        // Preserve read_file outputs — they are reference material;
+        // compacting them forces the agent to re-read files.
+        if (PRESERVE_RESULT_TOOLS.has(toolName)) continue;
+        result.content = `[Previous: used ${toolName}]`;
     }
 
     return messages;
@@ -239,7 +240,7 @@ async function autoCompact(messages: Message[]): Promise<Message[]> {
             }
             return value;
         }
-    ).slice(0, 80000);
+    ).slice(-80000);
 
     const summaryResponse = await client.messages.create({
         model: MODEL,
@@ -268,10 +269,6 @@ async function autoCompact(messages: Message[]): Promise<Message[]> {
         {
             role: "user",
             content: `[Conversation compressed. Transcript: ${transcriptPath}]\n\n${summary}`,
-        },
-        {
-            role: "assistant",
-            content: "Understood. I have the context from the summary. Continuing.",
         },
     ];
 }
@@ -581,6 +578,7 @@ async function agentLoop(messages: Message[]): Promise<void> {
         if (compactRequested) {
             console.log("[manual compact triggered...]");
             messages = await autoCompact(messages);
+            return;
         }
     }
 }

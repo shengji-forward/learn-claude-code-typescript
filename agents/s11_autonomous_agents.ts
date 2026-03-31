@@ -442,6 +442,16 @@ class TaskManager {
             const content = await fs.readFile(taskPath, "utf-8");
             const task: Task = JSON.parse(content);
 
+            if (task.owner) {
+                return `Error: Task ${taskId} has already been claimed by ${task.owner}`;
+            }
+            if (task.status !== TaskStatus.PENDING) {
+                return `Error: Task ${taskId} cannot be claimed because its status is '${task.status}'`;
+            }
+            if (task.blockedBy && task.blockedBy.length > 0) {
+                return `Error: Task ${taskId} is blocked by other task(s) and cannot be claimed yet`;
+            }
+
             task.owner = owner;
             task.status = TaskStatus.IN_PROGRESS;
 
@@ -1073,10 +1083,6 @@ async function agentLoop(messages: any[]): Promise<void> {
                 role: "user",
                 content: `<inbox>${JSON.stringify(inbox, null, 2)}</inbox>`,
             });
-            messages.push({
-                role: "assistant",
-                content: "Noted inbox messages.",
-            });
         }
 
         const response = await client.messages.create({
@@ -1105,7 +1111,8 @@ async function agentLoop(messages: any[]): Promise<void> {
                         ? await handler(block.input)
                         : `Unknown tool: ${block.name}`;
 
-                    console.log(`> ${block.name}: ${String(output).substring(0, 200)}`);
+                    console.log(`> ${block.name}:`);
+                    console.log(String(output).substring(0, 200));
 
                     results.push({
                         type: "tool_result",

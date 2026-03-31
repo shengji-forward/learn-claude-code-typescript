@@ -309,6 +309,16 @@ async function claimTask(taskId: number, owner: string): Promise<string> {
         const content = await fs.readFile(taskPath, "utf-8");
         const task: Task = JSON.parse(content);
 
+        if (task.owner) {
+            return `Error: Task ${taskId} has already been claimed by ${task.owner}`;
+        }
+        if (task.status !== "pending") {
+            return `Error: Task ${taskId} cannot be claimed because its status is '${task.status}'`;
+        }
+        if (task.blockedBy && task.blockedBy.length > 0) {
+            return `Error: Task ${taskId} is blocked by other task(s) and cannot be claimed yet`;
+        }
+
         task.owner = owner;
         task.status = "in_progress";
 
