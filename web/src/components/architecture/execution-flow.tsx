@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useTranslations } from "@/lib/i18n";
 import { getFlowForVersion } from "@/data/execution-flows";
 import type { FlowNode, FlowEdge } from "@/types/agent-data";
 
@@ -186,7 +185,6 @@ interface ExecutionFlowProps {
 }
 
 export function ExecutionFlow({ version }: ExecutionFlowProps) {
-  const t = useTranslations("version");
   const [flow, setFlow] = useState<ReturnType<typeof getFlowForVersion>>(null);
 
   useEffect(() => {
@@ -198,9 +196,7 @@ export function ExecutionFlow({ version }: ExecutionFlowProps) {
   const maxY = Math.max(...flow.nodes.map((n) => n.y)) + 50;
 
   return (
-    <section>
-      <h2 className="mb-4 text-xl font-semibold">{t("execution_flow")}</h2>
-      <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+    <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
         <svg
           viewBox={`0 0 600 ${maxY}`}
           className="mx-auto w-full max-w-[600px]"
@@ -238,6 +234,5 @@ export function ExecutionFlow({ version }: ExecutionFlowProps) {
           ))}
         </svg>
       </div>
-    </section>
   );
 }

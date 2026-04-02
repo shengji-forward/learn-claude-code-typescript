@@ -258,9 +258,8 @@ async function autoCompact(messages: Message[]): Promise<Message[]> {
     });
 
     const summary =
-        summaryResponse.content[0].type === "text"
-            ? summaryResponse.content[0].text
-            : "Summary unavailable";
+        (summaryResponse.content.find((block: any) => block.type === "text") as any)?.text
+        || "Summary unavailable";
 
     // Replace all messages with compressed summary
     // TypeScript: Return new array
