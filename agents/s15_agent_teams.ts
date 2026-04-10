@@ -1,13 +1,13 @@
 #!/usr/bin/env ts-node
 // Harness: multi-agent orchestration -- teammates with async mailboxes.
 /**
- * s09_agent_teams.ts - Agent Teams
+ * s15_agent_teams.ts - Agent Teams
  *
  * Persistent named agents with file-based JSONL inboxes. Each teammate runs
  * its own agent loop in a separate worker thread. Communication via append-only inboxes.
  *
  *     Subagent (s04):  spawn -> execute -> return summary -> destroyed
- *     Teammate (s09):  spawn -> work -> idle -> work -> ... -> shutdown
+ *     Teammate (s15):  spawn -> work -> idle -> work -> ... -> shutdown
  *
  *     .team/config.json                   .team/inbox/
  *     +----------------------------+      +------------------+
@@ -367,7 +367,7 @@ class TeammateManager {
                 inboxDir: INBOX_DIR,
                 modelId: MODEL,
                 apiBase: process.env.ANTHROPIC_BASE_URL,
-                sessionMode: "s09",
+                sessionMode: "s15",
                 protocolMode: "base",
             },
             ...(workerPath.endsWith(".ts")
@@ -774,12 +774,12 @@ async function main(): Promise<void> {
         });
     };
 
-    console.log("\nSession 9: Agent Teams");
+    console.log("\nSession 15: Agent Teams");
     console.log("Spawn persistent teammates that communicate via JSONL inboxes.\n");
 
     try {
         while (true) {
-            const query = await question("\x1b[36ms09 >> \x1b[0m");
+            const query = await question("\x1b[36ms15 >> \x1b[0m");
 
             if (query.trim().toLowerCase() === "q" || query.trim() === "exit" || query.trim() === "") {
                 break;

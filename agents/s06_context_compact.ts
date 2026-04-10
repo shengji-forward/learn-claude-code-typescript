@@ -257,9 +257,13 @@ async function autoCompact(messages: Message[]): Promise<Message[]> {
         max_tokens: 2000,
     });
 
+    // Collect text from ALL text blocks (not just the first -- model may put text after tool_use blocks)
     const summary =
-        (summaryResponse.content.find((block: any) => block.type === "text") as any)?.text
-        || "Summary unavailable";
+        summaryResponse.content
+            .filter((block: any) => block.type === "text")
+            .map((block: any) => block.text)
+            .join("\n")
+            .trim() || "Summary unavailable";
 
     // Replace all messages with compressed summary
     // TypeScript: Return new array

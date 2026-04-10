@@ -1,7 +1,7 @@
 #!/usr/bin/env ts-node
 // Harness: parallelism -- non-blocking execution while the agent keeps thinking.
 /**
- * s08_background_tasks.ts - Background Tasks
+ * s13_background_tasks.ts - Background Tasks
  *
  * Run commands in background worker threads. A notification queue is drained
  * before each LLM call to deliver results.
@@ -549,12 +549,12 @@ async function main(): Promise<void> {
         });
     };
 
-    console.log("\nSession 8: Background Tasks");
+    console.log("\nSession 13: Background Tasks");
     console.log("Long-running commands execute in worker threads without blocking.\n");
 
     try {
         while (true) {
-            const query = await question("\x1b[36ms08 >> \x1b[0m");
+            const query = await question("\x1b[36ms13 >> \x1b[0m");
 
             if (query.trim().toLowerCase() === "q" || query.trim() === "exit" || query.trim() === "") {
                 break;

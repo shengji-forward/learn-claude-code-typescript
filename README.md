@@ -75,7 +75,7 @@ If you are reading this repository, you are likely a harness engineer -- and tha
 
 - **Curate knowledge.** Give the agent domain expertise. Product documentation, architectural decision records, style guides, regulatory requirements. Load them on-demand (s05), not upfront. The agent should know what's available and pull what it needs.
 
-- **Manage context.** Give the agent clean memory. Subagent isolation (s04) prevents noise from leaking. Context compression (s06) prevents history from overwhelming. Task systems (s07) persist goals beyond any single conversation.
+- **Manage context.** Give the agent clean memory. Subagent isolation (s04) prevents noise from leaking. Context compression (s06) prevents history from overwhelming. Task systems (s12) persist goals beyond any single conversation.
 
 - **Control permissions.** Give the agent boundaries. Sandbox file access. Require approval for destructive operations. Enforce trust boundaries between the agent and external systems. This is where safety engineering meets harness engineering.
 
@@ -107,7 +107,7 @@ Claude Code = one agent loop
 
 That's it. That's the entire architecture. Every component is a harness mechanism -- a piece of the world built for the agent to inhabit. The agent itself? It's Claude. A model. Trained by Anthropic on the full breadth of human reasoning and code. The harness doesn't make Claude smart. Claude is already smart. The harness gives Claude hands, eyes, and a workspace.
 
-This is why Claude Code is the ideal teaching subject: **it demonstrates what happens when you trust the model and focus your engineering on the harness.** Every session in this repository (s01-s12) reverse-engineers one harness mechanism from Claude Code's architecture. By the end, you understand not just how Claude Code works, but the universal principles of harness engineering that apply to any agent in any domain.
+This is why Claude Code is the ideal teaching subject: **it demonstrates what happens when you trust the model and focus your engineering on the harness.** Every session in this repository (s01-s19) reverse-engineers one harness mechanism from Claude Code's architecture. By the end, you understand not just how Claude Code works, but the universal principles of harness engineering that apply to any agent in any domain.
 
 The lesson is not "copy Claude Code." The lesson is: **the best agent products are built by engineers who understand that their job is harness, not intelligence.**
 
@@ -160,8 +160,10 @@ First we fill the workshops. Then the farms, the hospitals, the factories. Then 
     the harness that makes the agent effective in a specific domain.
 ```
 
-**12 progressive sessions, from a simple loop to isolated autonomous execution.**
+**19 progressive sessions across 4 stages, from a simple loop to multi-agent platform.**
 **Each session adds one harness mechanism. Each mechanism has one motto.**
+
+### Stage 1: Core Loop (s01-s06)
 
 > **s01** &nbsp; *"One loop & Bash is all you need"* &mdash; one tool + one loop = an agent
 >
@@ -187,29 +189,63 @@ First we fill the workshops. Then the farms, the hospitals, the factories. Then 
 >
 > **Harness layer:** Context durability -- enabling infinite sessions through compression.
 
-> **s07** &nbsp; *"Break big goals into small tasks, order them, persist to disk"* &mdash; a file-based task graph with dependencies, laying the foundation for multi-agent collaboration
+### Stage 2: System Hardening (s07-s11)
+
+> **s07** &nbsp; *"Dangerous tools need a gate"* &mdash; permission checks before execution; the model asks, the harness decides
+>
+> **Harness layer:** Permissions -- a safety gate between model intent and real execution.
+
+> **s08** &nbsp; *"Extend behavior without rewriting the loop"* &mdash; hooks run before/after tool calls and lifecycle events
+>
+> **Harness layer:** Hook system -- extension points around the loop without modifying the loop.
+
+> **s09** &nbsp; *"Some facts must survive the session"* &mdash; durable key-value memory persists across conversations
+>
+> **Harness layer:** Memory -- cross-session knowledge that survives restarts.
+
+> **s10** &nbsp; *"Assemble the prompt from stable rules and runtime state"* &mdash; section-based prompt construction, not one monolithic string
+>
+> **Harness layer:** Prompt assembly -- structured system prompt built from configurable sections.
+
+> **s11** &nbsp; *"When the loop breaks, continue from where you left off"* &mdash; error recovery with continuation and retry branches
+>
+> **Harness layer:** Error recovery -- graceful degradation and automatic continuation.
+
+### Stage 3: Task Runtime (s12-s14)
+
+> **s12** &nbsp; *"Break big goals into small tasks, order them, persist to disk"* &mdash; a file-based task graph with dependencies
 >
 > **Harness layer:** Persistent goals -- task graph that survives beyond single conversations.
 
-> **s08** &nbsp; *"Run slow operations in the background; the agent keeps thinking"* &mdash; daemon threads run commands, inject notifications on completion
+> **s13** &nbsp; *"Run slow operations in the background; the agent keeps thinking"* &mdash; worker threads run commands, inject notifications on completion
 >
 > **Harness layer:** Parallelism -- non-blocking execution while the agent keeps thinking.
 
-> **s09** &nbsp; *"When the task is too big for one, delegate to teammates"* &mdash; persistent teammates + async mailboxes
+> **s14** &nbsp; *"When the time comes, the agent wakes itself"* &mdash; cron-based time triggers for scheduled and recurring tasks
+>
+> **Harness layer:** Cron scheduler -- time-based task activation without external orchestration.
+
+### Stage 4: Multi-Agent Platform (s15-s19)
+
+> **s15** &nbsp; *"When the task is too big for one, delegate to teammates"* &mdash; persistent teammates + async mailboxes
 >
 > **Harness layer:** Multi-agent orchestration -- teammates with async mailboxes.
 
-> **s10** &nbsp; *"Teammates need shared communication rules"* &mdash; one request-response pattern drives all negotiation
+> **s16** &nbsp; *"Teammates need shared communication rules"* &mdash; one request-response pattern drives all negotiation
 >
 > **Harness layer:** Coordination patterns -- request-response protocols for agent negotiation.
 
-> **s11** &nbsp; *"Teammates scan the board and claim tasks themselves"* &mdash; no need for the lead to assign each one
+> **s17** &nbsp; *"Teammates scan the board and claim tasks themselves"* &mdash; no need for the lead to assign each one
 >
 > **Harness layer:** Self-organization -- idle polling and automatic task claiming.
 
-> **s12** &nbsp; *"Each works in its own directory, no interference"* &mdash; tasks manage goals, worktrees manage directories, bound by ID
+> **s18** &nbsp; *"Each works in its own directory, no interference"* &mdash; tasks manage goals, worktrees manage directories, bound by ID
 >
 > **Harness layer:** Parallel execution lanes -- isolated workspaces bound by task IDs.
+
+> **s19** &nbsp; *"Route capabilities through a standard interface"* &mdash; external tools and resources via the Model Context Protocol
+>
+> **Harness layer:** External capability routing -- MCP plugin system for extending the agent's reach.
 
 ---
 
@@ -254,7 +290,7 @@ This repository is a 0->1 learning project for harness engineering -- building t
 It intentionally simplifies or omits several production mechanisms:
 
 - Full event/hook buses (for example PreToolUse, SessionStart/End, ConfigChange).
-  s12 includes only a minimal append-only lifecycle event stream for teaching.
+  s08 includes only a minimal append-only lifecycle event stream for teaching.
 - Rule-based permission governance and trust workflows
 - Session lifecycle controls (resume/fork) and advanced worktree lifecycle controls
 - Full MCP runtime details (transport/OAuth/resource subscribe/polling)
@@ -269,10 +305,19 @@ cd learn-claude-code-typescript
 npm install
 cp .env.example .env   # Edit .env with your ANTHROPIC_API_KEY
 
-npm run s01       # Start here
-npm run s12       # Full progression endpoint
+npm run s01       # Start here -- the minimal agent loop
+npm run s19       # Full progression endpoint -- MCP & Plugin
 npm run s:full    # Capstone: all mechanisms combined
 ```
+
+Suggested order:
+
+1. Run `s01` and make sure the minimal loop really works.
+2. Read the architecture overview, then move through `s01 -> s06` (Core Loop) in order.
+3. Continue through `s07 -> s11` (System Hardening) to add safety and reliability.
+4. Move into `s12 -> s14` (Task Runtime) for persistent and scheduled work.
+5. Finish with `s15 -> s19` (Multi-Agent Platform) for teams, autonomy, and external capabilities.
+6. Read `s_full` last, after the mechanisms already make sense separately.
 
 ### Web Platform
 
@@ -285,33 +330,39 @@ cd web && npm install && npm run dev   # http://localhost:3000
 ## Learning Path
 
 ```
-Phase 1: THE LOOP                    Phase 2: PLANNING & KNOWLEDGE
-==================                   ==============================
-s01  The Agent Loop          [1]     s03  TodoWrite               [5]
-     while + stop_reason                  TodoManager + nag reminder
+Stage 1: CORE LOOP                   Stage 2: SYSTEM HARDENING
+==================                   =========================
+s01  The Agent Loop          [1]     s07  Permission System       [8]
+     while + stop_reason                  allow/deny gate before execution
      |                                    |
-     +-> s02  Tool Use            [4]     s04  Subagents            [5]
-              dispatch map: name->handler     fresh messages[] per child
+     +-> s02  Tool Use            [4]     s08  Hook System            [10]
+              dispatch map: name->handler  lifecycle hooks around the loop
                                               |
-                                         s05  Skills               [5]
-                                              SKILL.md via tool_result
+                                         s09  Memory System           [10]
+                                              durable key-value store
                                               |
-                                         s06  Context Compact      [5]
-                                              3-layer compression
+                                         s10  System Prompt           [10]
+                                              section-based prompt assembly
+                                              |
+                                         s11  Error Recovery          [10]
+                                              continuation + retry branches
 
-Phase 3: PERSISTENCE                 Phase 4: TEAMS
-==================                   =====================
-s07  Tasks                   [8]     s09  Agent Teams             [9]
+Stage 3: TASK RUNTIME                Stage 4: MULTI-AGENT PLATFORM
+==================                   =============================
+s12  Task System              [10]   s15  Agent Teams              [12]
      file-based CRUD + deps graph         teammates + JSONL mailboxes
      |                                    |
-s08  Background Tasks        [6]     s10  Team Protocols          [12]
+s13  Background Tasks         [6]    s16  Team Protocols           [14]
      worker threads + notify queue        shutdown + plan approval FSM
+     |                                    |
+s14  Cron Scheduler           [6]    s17  Autonomous Agents        [14]
+     time-based triggers                   idle cycle + auto-claim
                                           |
-                                     s11  Autonomous Agents       [14]
-                                          idle cycle + auto-claim
-                                     |
-                                     s12  Worktree Isolation      [16]
-                                          task coordination + optional isolated execution lanes
+                                     s18  Worktree Isolation       [16]
+                                          task coordination + isolated execution lanes
+                                          |
+                                     s19  MCP & Plugin             [16]
+                                          external capability routing
 
                                      [N] = number of tools
 ```
@@ -321,7 +372,7 @@ s08  Background Tasks        [6]     s10  Team Protocols          [12]
 ```
 learn-claude-code-typescript/
 |
-|-- agents/                        # TypeScript reference implementations (s01-s12 + s_full capstone)
+|-- agents/                        # TypeScript reference implementations (s01-s19 + s_full capstone)
 |-- docs/{en}/                     # Mental-model-first documentation
 |-- web/                           # Interactive learning platform (Next.js)
 |-- skills/                        # Skill files for s05
@@ -341,16 +392,23 @@ Available in [English](./docs/en/).
 | [s04](./docs/en/s04-subagent.md) | Subagents | *Break big tasks down; each subtask gets a clean context* |
 | [s05](./docs/en/s05-skill-loading.md) | Skills | *Load knowledge when you need it, not upfront* |
 | [s06](./docs/en/s06-context-compact.md) | Context Compact | *Context will fill up; you need a way to make room* |
-| [s07](./docs/en/s07-task-system.md) | Tasks | *Break big goals into small tasks, order them, persist to disk* |
-| [s08](./docs/en/s08-background-tasks.md) | Background Tasks | *Run slow operations in the background; the agent keeps thinking* |
-| [s09](./docs/en/s09-agent-teams.md) | Agent Teams | *When the task is too big for one, delegate to teammates* |
-| [s10](./docs/en/s10-team-protocols.md) | Team Protocols | *Teammates need shared communication rules* |
-| [s11](./docs/en/s11-autonomous-agents.md) | Autonomous Agents | *Teammates scan the board and claim tasks themselves* |
-| [s12](./docs/en/s12-worktree-task-isolation.md) | Worktree + Task Isolation | *Each works in its own directory, no interference* |
+| [s07](./docs/en/s07-permission-system.md) | Permission System | *Dangerous tools need a gate* |
+| [s08](./docs/en/s08-hook-system.md) | Hook System | *Extend behavior without rewriting the loop* |
+| [s09](./docs/en/s09-memory-system.md) | Memory System | *Some facts must survive the session* |
+| [s10](./docs/en/s10-system-prompt.md) | System Prompt | *Assemble the prompt from stable rules and runtime state* |
+| [s11](./docs/en/s11-error-recovery.md) | Error Recovery | *When the loop breaks, continue from where you left off* |
+| [s12](./docs/en/s12-task-system.md) | Task System | *Break big goals into small tasks, order them, persist to disk* |
+| [s13](./docs/en/s13-background-tasks.md) | Background Tasks | *Run slow operations in the background; the agent keeps thinking* |
+| [s14](./docs/en/s14-cron-scheduler.md) | Cron Scheduler | *When the time comes, the agent wakes itself* |
+| [s15](./docs/en/s15-agent-teams.md) | Agent Teams | *When the task is too big for one, delegate to teammates* |
+| [s16](./docs/en/s16-team-protocols.md) | Team Protocols | *Teammates need shared communication rules* |
+| [s17](./docs/en/s17-autonomous-agents.md) | Autonomous Agents | *Teammates scan the board and claim tasks themselves* |
+| [s18](./docs/en/s18-worktree-task-isolation.md) | Worktree Isolation | *Each works in its own directory, no interference* |
+| [s19](./docs/en/s19-mcp-plugin.md) | MCP & Plugin | *Route capabilities through a standard interface* |
 
 ## What's Next -- from understanding to shipping
 
-After the 12 sessions you understand how harness engineering works inside out. Two ways to put that knowledge to work:
+After the 19 sessions you understand how harness engineering works inside out. Two ways to put that knowledge to work:
 
 ### Kode Agent CLI -- Open-Source Coding Agent CLI
 
@@ -389,7 +447,9 @@ claw agent = agent core + heartbeat + cron + IM chat + memory + soul
 learn-claude-code                   claw0
 (agent harness core:                (proactive always-on harness:
  loop, tools, planning,              heartbeat, cron, IM channels,
- teams, worktree isolation)          memory, soul personality)
+ permissions, hooks, memory,         memory, soul personality)
+ prompt assembly, tasks,
+ teams, worktree isolation)
 ```
 
 ## About

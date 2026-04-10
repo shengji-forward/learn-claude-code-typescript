@@ -2,22 +2,22 @@
   "version": "s09",
   "decisions": [
     {
-      "id": "teammate-vs-subagent",
-      "title": "Persistent Teammates vs One-Shot Subagents",
-      "description": "In s04, subagents are ephemeral: spawn, do one task, return result, die. Their knowledge dies with them. In s09, teammates are persistent threads with identity (name, role) and config files. A teammate can complete task A, then be assigned task B, carrying forward everything it learned. Persistent teammates accumulate project knowledge, understand established patterns, and don't need to re-read the same files for every task.",
-      "alternatives": "One-shot subagents (s04 style) are simpler and provide perfect context isolation -- no risk of one task's context polluting another. But the re-learning cost is high: every new task starts from zero. A middle ground (subagents with shared memory/knowledge base) was considered but adds complexity without the full benefit of persistent identity and state."
+      "id": "typed-memory-buckets",
+      "title": "Memory Separated into Typed Buckets",
+      "description": "Memory records are classified into types: user preferences, project constraints, environment facts, and session observations. Each type has its own persistence and retrieval rules. User preferences survive across projects; project constraints are scoped to one codebase; session observations are temporary. This typing prevents the common failure mode where everything gets dumped into one memory store and retrieval becomes noisy.",
+      "alternatives": "A single flat memory store is simpler but makes retrieval imprecise. Storing everything as natural language text and relying on semantic search works at scale but adds embedding infrastructure."
     },
     {
-      "id": "file-based-team-config",
-      "title": "Team Config Persisted to .teams/{name}/config.json",
-      "description": "Team structure (member names, roles, agent IDs) is stored in a JSON config file, not in any agent's memory. Any agent can discover its teammates by reading the config file -- no need for a discovery service or shared memory. If an agent crashes and restarts, it reads the config to find out who else is on the team. This is consistent with the s07 philosophy: the filesystem is the coordination layer.",
-      "alternatives": "In-memory team registries are faster but don't survive process restarts and require a central process to maintain. Service discovery (like DNS or a discovery server) is more robust at scale but overkill for a local multi-agent system. File-based config is the simplest approach that works across independent processes."
+      "id": "load-before-assemble",
+      "title": "Load Memory Before Prompt Assembly, Write After Work",
+      "description": "The memory lifecycle has two clear moments: load relevant memory right before assembling the prompt, and extract and persist new memory after the agent finishes its work. This split ensures memory always flows in the right direction -- old context informs new work, new work updates the durable record. Loading too early means stale data; writing too early means incomplete observations.",
+      "alternatives": "Loading memory at session start and writing at session end is simpler but misses mid-session updates. Continuous background sync is more real-time but adds complexity and potential race conditions."
     },
     {
-      "id": "tool-filtering-by-role",
-      "title": "Teammates Get Subset of Tools, Lead Gets All",
-      "description": "The team lead receives ALL_TOOLS (including spawn, send, read_inbox, etc.) while teammates receive TEAMMATE_TOOLS (a reduced set focused on task execution). This enforces a clear separation of concerns: teammates focus on doing work (coding, testing, researching), while the lead focuses on coordination (creating tasks, assigning work, managing communication). Giving teammates coordination tools would let them create their own sub-teams or reassign tasks, undermining the lead's ability to maintain a coherent plan.",
-      "alternatives": "Giving all agents identical tools is simpler and more egalitarian, but in practice leads to coordination chaos -- multiple agents trying to manage each other, creating conflicting task assignments. Static role-based filtering is predictable and easy to reason about."
+      "id": "memory-is-not-context",
+      "title": "Memory and Context Are Different State Containers",
+      "description": "Short-term messages[] carries the live conversation process. Compacted summaries carry compressed session history. Long-term memory carries cross-session facts that cannot be re-derived. These three containers have different lifespans, different sizes, and different access patterns. Mixing them up leads to either context bloat (stuffing memory into messages) or amnesia (compressing away facts that should be permanent).",
+      "alternatives": "Treating all state as one conversation history simplifies the model but causes context overflow. Storing everything in long-term memory and retrieving on demand sounds clean but adds latency and retrieval uncertainty to every turn."
     }
   ]
 }

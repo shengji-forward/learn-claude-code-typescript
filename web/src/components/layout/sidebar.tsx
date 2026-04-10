@@ -7,6 +7,11 @@ import { useTranslations } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const LAYER_DOT_BG: Record<string, string> = {
+  core: "bg-blue-500",
+  hardening: "bg-emerald-500",
+  runtime: "bg-amber-500",
+  platform: "bg-red-500",
+  // Legacy aliases
   tools: "bg-blue-500",
   planning: "bg-emerald-500",
   memory: "bg-purple-500",

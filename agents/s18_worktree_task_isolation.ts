@@ -1,7 +1,7 @@
 #!/usr/bin/env ts-node
 // Harness: parallel execution lanes -- isolated workspaces bound by task IDs.
 /**
- * s12_worktree_task_isolation.ts - Worktree + Task Isolation
+ * s18_worktree_task_isolation.ts - Worktree + Task Isolation
  *
  * Directory-level isolation for parallel task execution.
  * Tasks are the control plane and worktrees are the execution plane.
@@ -1317,7 +1317,7 @@ async function main(): Promise<void> {
     await EVENTS.init();
     await WORKTREES.init();
 
-    console.log(`Repo root for s12: ${REPO_ROOT}`);
+    console.log(`Repo root for s18: ${REPO_ROOT}`);
     if (!WORKTREES.isGitAvailable()) {
         console.log("Note: Not in a git repo. worktree_* tools will return errors.");
     }
@@ -1334,12 +1334,12 @@ async function main(): Promise<void> {
         });
     };
 
-    console.log("\nSession 12: Worktree + Task Isolation");
+    console.log("\nSession 18: Worktree + Task Isolation");
     console.log("Directory-level isolation for parallel task execution.\n");
 
     try {
         while (true) {
-            const query = await question("\x1b[36ms12 >> \x1b[0m");
+            const query = await question("\x1b[36ms18 >> \x1b[0m");
 
             if (query.trim().toLowerCase() === "q" || query.trim() === "exit" || query.trim() === "") {
                 break;

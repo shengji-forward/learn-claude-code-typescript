@@ -1,56 +1,44 @@
 {
   "version": "s08",
-  "title": "Background Tasks",
-  "description": "Agent executes long-running tasks in background threads",
+  "title": "Hook System",
+  "description": "Lifecycle hooks observe and extend the agent loop without rewriting it",
   "steps": [
     {
       "type": "user_message",
-      "content": "Run tests and while they run, fix lint errors",
-      "annotation": "Two tasks that can run concurrently"
-    },
-    {
-      "type": "assistant_text",
-      "content": "I'll start tests in the background and fix linting in parallel.",
-      "annotation": "Agent recognizes opportunity for concurrent execution"
-    },
-    {
-      "type": "tool_call",
-      "content": "npm test -- --runInBand",
-      "toolName": "background_task",
-      "annotation": "BackgroundManager spawns a thread for long-running test suite"
+      "content": "Fix the failing test in auth.test.ts",
+      "annotation": "A routine task that will trigger lifecycle hooks at each stage"
     },
     {
       "type": "system_event",
-      "content": "[BackgroundManager] Thread spawned: task_001\nRunning: npm test -- --runInBand\nStatus: in_progress",
-      "annotation": "Thread is running independently -- main loop continues"
-    },
-    {
-      "type": "tool_result",
-      "content": "Background task started: task_001",
-      "toolName": "background_task",
-      "annotation": "Control returns immediately to the agent"
+      "content": "[Hook: on_start] Session resumed. Tool usage count: 47. Active hooks: audit_logger, tool_timer, error_tracer.",
+      "annotation": "on_start hook fires when the loop begins -- audit hook records session state"
     },
     {
       "type": "tool_call",
-      "content": "npm run lint -- --fix",
+      "content": "cat auth.test.ts",
       "toolName": "bash",
-      "annotation": "Agent works on linting while tests run in background"
-    },
-    {
-      "type": "tool_result",
-      "content": "Fixed 12 linting errors in 5 files",
-      "toolName": "bash",
-      "annotation": "Linting fixed concurrently with tests"
+      "annotation": "Model reads the test file"
     },
     {
       "type": "system_event",
-      "content": "[Notification] Background task_001 completed\nResult: 47 tests passed, 2 failed\nFailed: auth.test.ts > token expiry, api.test.ts > rate limit",
-      "annotation": "Background thread notifies main loop via notification queue"
+      "content": "[Hook: pre_tool] tool=bash, cmd='cat auth.test.ts'\n[Hook: tool_timer] Starting timer for bash call...",
+      "annotation": "pre_tool hook fires before execution -- timer hook starts measuring"
+    },
+    {
+      "type": "tool_result",
+      "content": "// test file contents...",
+      "toolName": "bash",
+      "annotation": "Tool executes normally"
+    },
+    {
+      "type": "system_event",
+      "content": "[Hook: post_tool] tool=bash, duration=0.3s, status=success\n[Hook: audit_logger] Logged: bash cat auth.test.ts -> success (0.3s)",
+      "annotation": "post_tool hook fires after execution -- audit hook records the result"
     },
     {
       "type": "assistant_text",
-      "content": "Linting is fixed. Tests finished: 47 passed, 2 failed. I'll fix the failing tests next.",
-      "annotation": "Non-blocking execution via threads + queue enables parallel work"
+      "content": "I can see the test expects a different token format. Let me fix it.",
+      "annotation": "Hooks observe and annotate without disrupting the main loop flow"
     }
   ]
 }

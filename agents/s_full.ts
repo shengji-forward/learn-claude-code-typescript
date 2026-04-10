@@ -692,26 +692,49 @@ async function autoCompact(messages: Message[]): Promise<Message[]> {
 
     const convText = JSON.stringify(messages, (_, v) =>
         v?.toString?.() ?? v
-    ).slice(-80000);
+    ).slice(0, 80000);
+
+    // Structured summary prompt (mirrors Python s_full auto_compact)
+    let summaryPrompt =
+        "Summarize this conversation for continuity. Structure your summary:\n" +
+        "1) Task overview: core request, success criteria, constraints\n" +
+        "2) Current state: completed work, files touched, artifacts created\n" +
+        "3) Key decisions and discoveries: constraints, errors, failed approaches\n" +
+        "4) Next steps: remaining actions, blockers, priority order\n" +
+        "5) Context to preserve: user preferences, domain details, commitments\n" +
+        "Be concise but preserve critical details.\n" +
+        convText;
 
     const summaryResponse = await client.messages.create({
         model: MODEL,
         messages: [
             {
                 role: "user",
-                content: `Summarize for continuity:\n${convText}`,
+                content: summaryPrompt,
             },
         ],
-        max_tokens: 2000,
+        max_tokens: 4000,
     });
 
+    // Collect text from ALL text blocks (not just the first)
     const summary =
-        (summaryResponse.content[0] as { text: string }).text || "";
+        summaryResponse.content
+            .filter((block: any) => block.type === "text")
+            .map((block: any) => block.text)
+            .join("\n")
+            .trim() || "Summary unavailable";
+
+    const continuation =
+        "This session is being continued from a previous conversation that ran out " +
+        "of context. The summary below covers the earlier portion of the conversation.\n\n" +
+        `${summary}\n\n` +
+        "Please continue the conversation from where we left it off without asking " +
+        "the user any further questions.";
 
     return [
         {
             role: "user",
-            content: `[Compressed. Transcript: ${transcriptPath}]\n${summary}`,
+            content: continuation,
         },
     ];
 }
@@ -1651,6 +1674,7 @@ async function agentLoop(messages: Message[]): Promise<void> {
                 role: "user",
                 content: `<background-results>\n${txt}\n</background-results>`,
             });
+            messages.push({ role: "assistant", content: "Noted background results." });
         }
 
         // s10: check lead inbox
@@ -1660,6 +1684,7 @@ async function agentLoop(messages: Message[]): Promise<void> {
                 role: "user",
                 content: `<inbox>${JSON.stringify(inbox, null, 2)}</inbox>`,
             });
+            messages.push({ role: "assistant", content: "Noted inbox messages." });
         }
 
         // LLM call
@@ -1719,7 +1744,7 @@ async function agentLoop(messages: Message[]): Promise<void> {
         // s03: nag reminder (only when todo workflow is active)
         roundsWithoutTodo = usedTodo ? 0 : roundsWithoutTodo + 1;
         if (TODO.hasOpenItems() && roundsWithoutTodo >= 3) {
-            results.push({
+            results.unshift({
                 type: "text",
                 text: "<reminder>Update your todos.</reminder>",
             });

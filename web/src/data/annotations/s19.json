@@ -1,0 +1,23 @@
+{
+  "version": "s19",
+  "decisions": [
+    {
+      "id": "unified-capability-view",
+      "title": "Native Tools, Plugins, and MCP Share One Capability View",
+      "description": "Whether a capability comes from a native tool, a plugin, or an MCP server, the system presents it through a unified capability view. Discovery, routing, and invocation use the same interface regardless of source. This means adding a new MCP server or plugin doesn't require changing the agent loop -- it just adds entries to the capability registry.",
+      "alternatives": "Separate dispatch paths for native vs external tools creates branching complexity. Treating MCP servers as special cases leads to inconsistent behavior. A unified view keeps the system coherent."
+    },
+    {
+      "id": "external-still-passes-policy",
+      "title": "External Capabilities Still Pass Permission and Recovery",
+      "description": "External tool calls go through the same permission gate (s07), lifecycle hooks (s08), and error recovery (s11) as native tools. There is no shortcut for external capabilities. This ensures safety policy applies uniformly and the agent's control plane remains intact regardless of where a capability comes from.",
+      "alternatives": "Bypassing permission checks for 'trusted' external tools creates a security hole. Having separate error handling for external calls leads to inconsistent recovery behavior."
+    },
+    {
+      "id": "normalized-results",
+      "title": "External Results Normalized to the Same Format",
+      "description": "Results from MCP servers and plugins are normalized into the same tool_result format that native tools produce. The agent loop doesn't need to know whether a result came from a local tool or a remote server. This normalization keeps the result-append path uniform and prevents the system from fragmenting into native vs external result handling.",
+      "alternatives": "Passing raw external responses through creates format inconsistencies. Having separate result processing paths per source type duplicates logic and diverges over time."
+    }
+  ]
+}

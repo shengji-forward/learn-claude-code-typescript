@@ -2,28 +2,22 @@
   "version": "s07",
   "decisions": [
     {
-      "id": "file-based-persistence",
-      "title": "Tasks Stored as JSON Files, Not In-Memory",
-      "description": "Tasks are persisted as JSON files in a .tasks/ directory on the filesystem instead of being held in memory. This has three critical benefits: (1) Tasks survive process crashes -- if the agent dies mid-task, the task board is still on disk when it restarts. (2) Multiple agents can read and write to the same task directory, enabling multi-agent coordination without shared memory. (3) Humans can inspect and manually edit task files for debugging. The filesystem becomes the shared database.",
-      "alternatives": "In-memory storage (like v2's TodoWrite) is simpler and faster but loses state on crash and doesn't work across multiple agent processes. A proper database (SQLite, Redis) would provide ACID guarantees and better concurrency, but adds a dependency and operational complexity. Files are the zero-dependency persistence layer that works everywhere."
+      "id": "permission-gate-before-execution",
+      "title": "Permission Check Before Every Tool Execution",
+      "description": "Every tool call passes through a permission gate before execution. The gate normalizes the raw tool call into a structured intent (action type, target, risk level), then applies a policy pipeline: deny first, then check mode restrictions, then allow if safe, and ask the user as a last resort. This centralizes all safety logic in one place rather than scattering permission checks across individual tool handlers.",
+      "alternatives": "Embedding permission logic in each tool handler is simpler initially but leads to inconsistent safety enforcement. A single global allow/deny boolean is too coarse for real-world use cases where some operations need confirmation and others are always safe."
     },
     {
-      "id": "dependency-graph",
-      "title": "Tasks Have blocks/blockedBy Dependency Fields",
-      "description": "Each task can declare which other tasks it blocks (downstream dependents) and which tasks block it (upstream dependencies). An agent will not start a task that has unresolved blockedBy dependencies. This is essential for multi-agent coordination: when Agent A is writing the database schema and Agent B needs to write queries against it, Agent B's task is blockedBy Agent A's task. Without dependencies, both agents might start simultaneously and Agent B would work against a schema that doesn't exist yet.",
-      "alternatives": "Simple priority ordering (high/medium/low) doesn't capture 'task B literally cannot start until task A finishes.' A centralized coordinator that assigns tasks in order would work but creates a single point of failure and bottleneck. Declarative dependencies let each agent independently determine what it can work on by reading the task files."
+      "id": "deny-mode-allow-ask-pipeline",
+      "title": "The deny / mode / allow / ask Pipeline",
+      "description": "Permission decisions follow a fixed pipeline order: (1) deny -- hard-blocked actions that should never execute, (2) mode -- session-level mode restrictions (read-only, plan-only), (3) allow -- auto-approved actions based on configured allowlists, (4) ask -- prompt the user for confirmation. This order ensures the most restrictive checks run first, so an action can never bypass a deny through a later allow rule.",
+      "alternatives": "A single allowlist + blocklist is simpler but cannot express mode-based restrictions. An ACL-style system (access control lists per resource) is more granular but overkill for an agent's tool-level permissions."
     },
     {
-      "id": "task-default-todo-coexistence",
-      "title": "Task as Course Default, Todo Still Useful",
-      "description": "TaskManager extends the Todo mental model and becomes the default workflow from s07 onward in this course. Both track work items with statuses, but TaskManager adds file persistence (survives crashes), dependency tracking (blocks/blockedBy), ownership fields, and multi-process coordination. Todo remains useful for short, linear, one-shot tracking where heavyweight coordination is unnecessary.",
-      "alternatives": "Using only Todo keeps the model minimal but weak for long-running or collaborative work. Using only Task everywhere maximizes consistency but can feel heavy for tiny one-off tasks."
-    },
-    {
-      "id": "task-write-discipline",
-      "title": "Durability Needs Write Discipline",
-      "description": "File persistence reduces context loss, but it does not remove concurrent-write risks by itself. Before writing task state, reload the JSON, validate expected status/dependency fields, and then save atomically. This prevents one agent from silently overwriting another agent's transition.",
-      "alternatives": "Blind overwrite writes are simpler but can corrupt coordination state under parallel execution. A database with optimistic locking would enforce stronger safety, but the course keeps file-based state for zero-dependency teaching."
+      "id": "structured-permission-result",
+      "title": "Permission Results Become Visible Context",
+      "description": "When permission is denied or the user is prompted, the result is written back into the conversation as a structured message. The model can see what happened ('permission denied: writing to /etc/hosts is not allowed') and reason about next steps. This makes permission outcomes part of the agent's visible state, not silent failures.",
+      "alternatives": "Silent denial (drop the tool call without explanation) is simpler but leaves the model confused about why its action didn't happen. Raising an exception works but mixes control flow with safety policy."
     }
   ]
 }

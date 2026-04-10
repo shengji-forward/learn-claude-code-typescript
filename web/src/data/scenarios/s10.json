@@ -1,38 +1,45 @@
 {
   "version": "s10",
-  "title": "Team Protocols",
-  "description": "Request-response protocols for shutdown and plan approval",
+  "title": "System Prompt",
+  "description": "Agent assembles its input from a pipeline of stable policy and runtime state",
   "steps": [
     {
       "type": "user_message",
-      "content": "Work is done. Shut down the team gracefully.",
-      "annotation": "Can't just kill threads -- need coordinated shutdown"
-    },
-    {
-      "type": "tool_call",
-      "content": "shutdown_request(\n  teammate: \"backend-dev\",\n  request_id: \"req_abc123\"\n)",
-      "toolName": "shutdown_teammate",
-      "annotation": "request_id correlates the request with the response"
+      "content": "Add rate limiting to the API",
+      "annotation": "New task -- the prompt assembly pipeline determines what the model sees"
     },
     {
       "type": "system_event",
-      "content": "[Shutdown FSM] req_abc123: pending\n  Lead -> backend-dev inbox:\n  { type: \"shutdown_request\", request_id: \"req_abc123\" }",
-      "annotation": "FSM tracks state: pending -> approved | rejected"
-    },
-    {
-      "type": "system_event",
-      "content": "[backend-dev] Received shutdown request req_abc123\n  Current task: none (idle)\n  Decision: approve\n  -> lead inbox: { type: \"shutdown_response\", request_id: \"req_abc123\", approve: true }",
-      "annotation": "Teammate decides whether to approve based on its own state"
-    },
-    {
-      "type": "system_event",
-      "content": "[Shutdown FSM] req_abc123: approved\n  backend-dev thread stopped\n  Status: idle -> shutdown",
-      "annotation": "Same request_id pattern works for plan approval too"
+      "content": "[Prompt Assembly]\n  1. Stable policy: 'You are a coding agent. Safety rules: ...'\n  2. Runtime state: cwd=/project, platform=darwin\n  3. Tool definitions: bash, read, write, edit, task_manager\n  4. Memory: User prefers TypeScript, project uses Express\n  5. Task state: #5 (in_progress) Add rate limiting\n  6. Recovery hint: No pending errors",
+      "annotation": "Prompt sections assembled in a defined order -- policy first, runtime state second"
     },
     {
       "type": "assistant_text",
-      "content": "backend-dev shut down gracefully. The same request_id + FSM pattern handles plan approval: teammate submits plan, lead approves/rejects with the correlated request_id.",
-      "annotation": "One pattern (request_id correlation), two applications (shutdown + plan approval)"
+      "content": "I'll add rate limiting to the Express API. The project uses Express with TypeScript.",
+      "annotation": "Model's response reflects the assembled context -- it knows the framework from memory injection"
+    },
+    {
+      "type": "tool_call",
+      "content": "npm install express-rate-limit",
+      "toolName": "bash",
+      "annotation": "Action informed by prompt pipeline output"
+    },
+    {
+      "type": "tool_result",
+      "content": "added 1 package",
+      "toolName": "bash",
+      "annotation": "Normal tool execution continues"
+    },
+    {
+      "type": "tool_call",
+      "content": "write_file src/middleware/rateLimit.ts\n---\nimport rateLimit from 'express-rate-limit';\nexport const apiLimiter = rateLimit({ windowMs: 15*60*1000, max: 100 });",
+      "toolName": "write_file",
+      "annotation": "Code follows the project constraint (TypeScript) injected via the prompt pipeline"
+    },
+    {
+      "type": "assistant_text",
+      "content": "Rate limiter added at src/middleware/rateLimit.ts with 100 requests per 15-minute window.",
+      "annotation": "The prompt pipeline controls what the model sees, which controls how it behaves"
     }
   ]
 }

@@ -2,7 +2,7 @@
 // Harness: persistent goals -- task graph that survives beyond single conversations.
 // @ts-nocheck
 /**
- * s07_task_system.ts - Tasks
+ * s12_task_system.ts - Tasks
  *
  * Tasks persist as JSON files in .tasks/ so they survive context compression.
  * Each task has a dependency graph (blockedBy/blocks).
@@ -676,11 +676,11 @@ async function main(): Promise<void> {
         });
     };
 
-    console.log("\nSession 7: Task System");
+    console.log("\nSession 12: Task System");
     console.log("Tasks persist in .tasks/ directory and survive context compression.\n");
 
     while (true) {
-        const query = await question("\x1b[36ms07 >> \x1b[0m");
+        const query = await question("\x1b[36ms12 >> \x1b[0m");
 
         if (query.trim().toLowerCase() === "q" || query.trim() === "exit" || query.trim() === "") {
             break;

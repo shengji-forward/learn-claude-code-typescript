@@ -1,53 +1,51 @@
 {
   "version": "s07",
-  "title": "Tasks",
-  "description": "Agent uses persistent file-based tasks with dependencies",
+  "title": "Permission System",
+  "description": "Agent checks permission policy before executing any tool",
   "steps": [
     {
       "type": "user_message",
-      "content": "Build a REST API with user auth, database, and deployment config",
-      "annotation": "Multi-part task requiring dependency tracking"
-    },
-    {
-      "type": "tool_call",
-      "content": "create_task(\"Set up database schema\", deps=[])\ncreate_task(\"Implement user model\", deps=[1])\ncreate_task(\"Add auth endpoints\", deps=[2])\ncreate_task(\"Write deployment config\", deps=[3])",
-      "toolName": "task_manager",
-      "annotation": "TaskManager creates file-based tasks with explicit dependencies"
-    },
-    {
-      "type": "tool_result",
-      "content": "Created 4 tasks in .tasks/\n  #1 Set up database schema [ready]\n  #2 Implement user model [blocked by #1]\n  #3 Add auth endpoints [blocked by #2]\n  #4 Write deployment config [blocked by #3]",
-      "toolName": "task_manager",
-      "annotation": "Tasks persisted to .tasks/ directory as JSON files"
-    },
-    {
-      "type": "tool_call",
-      "content": "schema.sql\n---\nCREATE TABLE users (id SERIAL PRIMARY KEY, email TEXT UNIQUE, password_hash TEXT);",
-      "toolName": "write_file",
-      "annotation": "Working on task #1"
-    },
-    {
-      "type": "tool_result",
-      "content": "File written successfully",
-      "toolName": "write_file",
-      "annotation": "Schema created"
-    },
-    {
-      "type": "tool_call",
-      "content": "complete_task(1)",
-      "toolName": "task_manager",
-      "annotation": "Completing task #1 automatically unblocks task #2"
-    },
-    {
-      "type": "tool_result",
-      "content": "Task #1 completed. Task #2 is now ready.",
-      "toolName": "task_manager",
-      "annotation": "File-based persistence outlives process memory"
+      "content": "Delete the old log files and install the new dependency",
+      "annotation": "Request includes a potentially dangerous operation (delete) and a safe one (install)"
     },
     {
       "type": "assistant_text",
-      "content": "Database schema is done. Moving to user model implementation.",
-      "annotation": "Dependency graph ensures tasks execute in correct order"
+      "content": "I'll handle both requests. Let me check permissions first.",
+      "annotation": "Agent routes both actions through the permission gate"
+    },
+    {
+      "type": "tool_call",
+      "content": "rm -rf /var/log/old/*.log",
+      "toolName": "bash",
+      "annotation": "Model proposes a file deletion -- permission gate checks before execution"
+    },
+    {
+      "type": "system_event",
+      "content": "[Permission] Action: file_delete, Target: /var/log/old/*.log\nPolicy: ask (destructive file operation)\nPrompting user for confirmation...",
+      "annotation": "The deny/mode/allow/ask pipeline reaches 'ask' for this destructive action"
+    },
+    {
+      "type": "tool_result",
+      "content": "Permission denied: destructive file operation requires user confirmation. Reason: rm -rf targets outside workspace.",
+      "toolName": "bash",
+      "annotation": "Permission result becomes visible context -- model sees why the action was blocked"
+    },
+    {
+      "type": "tool_call",
+      "content": "npm install better-sqlite3",
+      "toolName": "bash",
+      "annotation": "Install command is auto-approved by the allow rule"
+    },
+    {
+      "type": "tool_result",
+      "content": "added 1 package in 2s",
+      "toolName": "bash",
+      "annotation": "Safe operation passes through the allow stage of the pipeline"
+    },
+    {
+      "type": "assistant_text",
+      "content": "The dependency is installed. The file deletion was blocked because it targets files outside the workspace. Would you like me to delete only the workspace-local logs instead?",
+      "annotation": "Model reasons over the permission denial and proposes a safer alternative"
     }
   ]
 }

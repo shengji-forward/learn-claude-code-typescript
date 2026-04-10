@@ -1,0 +1,23 @@
+{
+  "version": "s18",
+  "decisions": [
+    {
+      "id": "tasks-and-lanes-separate",
+      "title": "Tasks and Worktree Lanes Are Different Layers",
+      "description": "Tasks describe the goal (what to do). Worktrees describe where execution happens (isolated directory). Keeping these layers separate prevents the runtime model from blurring: a task can exist without a worktree, and a worktree can exist without an active task. The binding between them is explicit and optional.",
+      "alternatives": "Folding worktree state into task records conflates goal and location. Requiring every task to have a worktree adds overhead for trivial tasks. Separate records with optional binding is the cleanest model."
+    },
+    {
+      "id": "explicit-lifecycle",
+      "title": "Explicit enter / run / closeout Lifecycle",
+      "description": "Worktree operations follow a defined lifecycle: allocate the worktree, enter the directory, run the work, then decide whether to keep or remove it during closeout. Each step is a separate tool operation, making the lifecycle inspectable and recoverable. Partial failures (crash during execution) leave the worktree in a known state.",
+      "alternatives": "Auto-managing worktrees invisibly makes failures mysterious. Combining all lifecycle steps into one operation reduces flexibility and prevents partial recovery."
+    },
+    {
+      "id": "event-stream-observability",
+      "title": "Lifecycle Events Make Lanes Observable",
+      "description": "Create, enter, and closeout events are emitted to an append-only event stream (.worktrees/events.jsonl). This makes execution-lane state visible to the rest of the system without querying each worktree individually. Events are the side channel for observability; task and worktree files remain the source of truth.",
+      "alternatives": "Querying each worktree's git status is slow and doesn't capture transitions. Console logs are ephemeral and hard to audit. A full event bus is powerful but heavier than needed."
+    }
+  ]
+}

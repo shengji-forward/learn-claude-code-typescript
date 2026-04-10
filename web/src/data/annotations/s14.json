@@ -1,0 +1,23 @@
+{
+  "version": "s14",
+  "decisions": [
+    {
+      "id": "scheduler-only-matches-rules",
+      "title": "Cron Scheduler Only Matches Time Rules",
+      "description": "The scheduler is responsible for one thing: evaluating time rules (cron expressions) and determining when they match. It does not own execution logic, retry behavior, or result handling. When a rule matches, the scheduler creates a runtime task and hands it off to the background execution layer. This decoupling keeps the scheduler simple and composable.",
+      "alternatives": "Embedding execution logic in the scheduler conflates time-based triggering with task running. A monolithic scheduler that both triggers and executes is harder to test and reason about."
+    },
+    {
+      "id": "trigger-creates-runtime-task",
+      "title": "Triggers Create the Same Runtime Task Records",
+      "description": "When a cron rule matches, it generates the same kind of runtime task that user-initiated background work would create. This means the execution path, notification mechanism, and result handling are identical regardless of whether the trigger came from a user or from time. Uniform task records simplify the system: one execution pipeline, one notification format, one result store.",
+      "alternatives": "A separate execution path for scheduled tasks would duplicate logic and diverge in behavior over time. Special 'cron task' records add unnecessary type complexity."
+    },
+    {
+      "id": "time-and-execution-decoupled",
+      "title": "Time Triggering and Execution Runtime Are Decoupled",
+      "description": "Separating the scheduler from the runtime means you can explain both why work started (the cron rule matched at 2pm) and how it moved through execution (runtime task created, ran, notified, completed). These are two different questions, and the system should answer them with two different records: the schedule record and the runtime task record.",
+      "alternatives": "Collapsing both into one record makes it unclear whether a task was triggered by time or by user action. A single combined system is simpler to build but harder to debug and extend."
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "version": "s19",
+  "title": "MCP & Plugin",
+  "description": "External capabilities join the same routing and permission pipeline",
+  "steps": [
+    {
+      "type": "user_message",
+      "content": "Search the web for the latest Next.js docs and create a new API route following their patterns",
+      "annotation": "Request requires external capability (web search) + native capability (file creation)"
+    },
+    {
+      "type": "system_event",
+      "content": "[Capability Discovery]\n  Native tools: bash, read, write, edit, task_manager\n  Plugins: web_search (plugin)\n  MCP servers: github (connected)\n  All capabilities registered in unified view.",
+      "annotation": "Native tools, plugins, and MCP servers share one capability registry"
+    },
+    {
+      "type": "tool_call",
+      "content": "web_search(\"Next.js 15 API routes documentation 2026\")",
+      "toolName": "web_search",
+      "annotation": "External plugin tool call goes through the same dispatch path"
+    },
+    {
+      "type": "system_event",
+      "content": "[Permission] Action: external_call, Target: web_search\nPolicy: allow (plugin on approved list)\n[Hook: pre_tool] Logging external capability invocation",
+      "annotation": "External calls pass through the same permission gate and hooks as native tools"
+    },
+    {
+      "type": "tool_result",
+      "content": "Next.js 15 API Routes: Use route handlers in app/api/...\nexport async function GET(request: Request) { ... }",
+      "toolName": "web_search",
+      "annotation": "External result normalized to the same tool_result format"
+    },
+    {
+      "type": "tool_call",
+      "content": "write_file app/api/users/route.ts\n---\nimport { NextResponse } from 'next/server';\nexport async function GET() {\n  return NextResponse.json({ users: [] });\n}",
+      "toolName": "write_file",
+      "annotation": "Native tool follows the same pipeline -- no special handling needed"
+    },
+    {
+      "type": "assistant_text",
+      "content": "Created the API route following Next.js 15 patterns. The web search plugin and native file creation used the same routing and permission pipeline.",
+      "annotation": "External capabilities join the same control plane: discovery, permission, execution, result normalization"
+    }
+  ]
+}

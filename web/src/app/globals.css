@@ -3,6 +3,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  --color-layer-core: #2563EB;
+  --color-layer-hardening: #059669;
+  --color-layer-runtime: #D97706;
+  --color-layer-platform: #DC2626;
   --color-layer-tools: #3B82F6;
   --color-layer-planning: #10B981;
   --color-layer-memory: #8B5CF6;

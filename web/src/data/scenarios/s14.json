@@ -1,0 +1,44 @@
+{
+  "version": "s14",
+  "title": "Cron Scheduler",
+  "description": "Time-based triggers create runtime tasks for scheduled work",
+  "steps": [
+    {
+      "type": "user_message",
+      "content": "Set up a daily health check that runs the test suite every morning at 6am",
+      "annotation": "User wants time-triggered automated work"
+    },
+    {
+      "type": "tool_call",
+      "content": "cron_create(\n  name: \"daily-health-check\",\n  schedule: \"0 6 * * *\",\n  command: \"npm test -- --ci\"\n)",
+      "toolName": "cron_manager",
+      "annotation": "Cron scheduler stores the rule; it doesn't own the execution"
+    },
+    {
+      "type": "tool_result",
+      "content": "Schedule created: daily-health-check\n  Cron: 0 6 * * * (daily at 6:00 AM)\n  Next trigger: 2026-04-10 06:00:00",
+      "toolName": "cron_manager",
+      "annotation": "Schedule record persisted separately from runtime task records"
+    },
+    {
+      "type": "system_event",
+      "content": "[Cron Tick] 06:00:00\n  Evaluating rules...\n  Match: daily-health-check (0 6 * * *)\n  Creating runtime task...",
+      "annotation": "Cron tick evaluates rules -- time triggering is decoupled from execution"
+    },
+    {
+      "type": "system_event",
+      "content": "[RuntimeTask] Created record rt_cron_001\n  Source: cron:daily-health-check\n  Command: npm test -- --ci\n  Status: queued",
+      "annotation": "Trigger creates the same kind of runtime task as user-initiated background work"
+    },
+    {
+      "type": "system_event",
+      "content": "[Notification] Runtime task rt_cron_001 completed\n  Preview: All 52 tests passed\n  Output: .runtime/rt_cron_001/output.txt",
+      "annotation": "Execution follows the same runtime pipeline as any other background task"
+    },
+    {
+      "type": "assistant_text",
+      "content": "Daily health check is set up. It will run npm test every morning at 6am, creating a runtime task each time. Results come through the same notification mechanism.",
+      "annotation": "Scheduling and execution are decoupled: cron triggers, runtime executes, notifications report"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
-# s09: Agent Teams
+# s15: Agent Teams
 
-`s01 > s02 > s03 > s04 > s05 > s06 | s07 > s08 > [ s09 ] s10 > s11 > s12`
+`s01 > s02 > s03 > s04 > s05 > s06 > s07 > s08 > s09 > s10 > s11 > s12 > s13 > s14 > [ s15 ] > s16 > s17 > s18 > s19`
 
 > "When one agent is not enough, delegate to persistent teammates".
 >

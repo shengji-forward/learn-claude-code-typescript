@@ -2,22 +2,22 @@
   "version": "s10",
   "decisions": [
     {
-      "id": "jsonl-inbox",
-      "title": "JSONL Inbox Files Instead of Shared Memory",
-      "description": "Each teammate has its own inbox file (a JSONL file in the team directory). Sending a message means appending a JSON line to the recipient's inbox file. Reading messages means reading the inbox file and tracking which line was last read. JSONL is append-only by nature, which means concurrent writers don't corrupt each other's data (appends to different file positions). This works across processes without any shared memory, mutex, or IPC mechanism. It's also crash-safe: if the writer crashes mid-append, the worst case is one partial line that the reader can skip.",
-      "alternatives": "Shared memory (Python multiprocessing.Queue) would be faster but doesn't work if agents are separate processes launched independently. A message broker (Redis, RabbitMQ) provides robust pub/sub but adds infrastructure dependencies. Unix domain sockets would work but are harder to debug (no human-readable message log). JSONL files are the simplest approach that provides persistence, cross-process communication, and debuggability."
+      "id": "stable-policy-section",
+      "title": "Separate Stable Policy from Runtime Fragments",
+      "description": "The system prompt is split into two categories: stable policy (role definition, safety rules, non-negotiable constraints) and runtime fragments (working directory, available tools, memory context, task state). Stable policy rarely changes and benefits from prompt caching. Runtime fragments change frequently. Keeping them separate means the model always sees the same foundation, and only the dynamic parts vary.",
+      "alternatives": "One monolithic prompt string is simpler but grows uncontrollably and defeats prompt caching. Generating the entire prompt from templates every time works but loses the stability that helps the model anchor its behavior."
     },
     {
-      "id": "five-message-types",
-      "title": "Exactly Five Message Types Cover All Coordination Patterns",
-      "description": "The messaging system supports exactly five types: (1) 'message' for point-to-point communication between two agents, (2) 'broadcast' for team-wide announcements, (3) 'shutdown_request' for graceful termination, (4) 'shutdown_response' for acknowledging shutdown, (5) 'plan_approval_response' for the lead to approve or reject a teammate's plan. These five types map to the fundamental coordination patterns: direct communication, broadcast, lifecycle management, and approval workflows.",
-      "alternatives": "A single generic message type with metadata fields would be more flexible but makes it harder to enforce protocol correctness. Many more types (10+) would provide finer-grained semantics but increase the model's decision burden. Five types is the sweet spot where every type has a clear, distinct purpose."
+      "id": "explicit-assembly-order",
+      "title": "Prompt Sections Assembled in a Defined Order",
+      "description": "The prompt builder assembles sections in a fixed order: stable policy, runtime state, tool definitions, memory injection, task state, and recovery hints. This ordering matters because the model processes earlier sections first and may weight them more heavily. Safety rules before tool definitions means the model sees constraints before capabilities.",
+      "alternatives": "Alphabetical or insertion-order assembly is simpler but produces unpredictable behavior. Allowing each section to specify its own priority leads to conflicts. A fixed pipeline is explicit and debuggable."
     },
     {
-      "id": "inbox-before-api-call",
-      "title": "Check Inbox Before Every LLM Call",
-      "description": "Teammates check their inbox file at the top of every agent loop iteration, before calling the LLM API. This ensures maximum responsiveness to incoming messages: a shutdown request is seen within one loop iteration (typically seconds), not after the current task completes (potentially minutes). The inbox check is cheap (read a small file, check if new lines exist) compared to the LLM call (seconds of latency, thousands of tokens). This placement also means incoming messages can influence the next LLM call -- a message saying 'stop working on X, switch to Y' takes effect immediately.",
-      "alternatives": "Checking inbox after each tool execution would be more responsive but adds overhead to every tool call, which is more frequent than LLM calls. A separate watcher thread could monitor the inbox continuously but adds threading complexity. Checking once per LLM call is the pragmatic sweet spot: responsive enough for coordination, cheap enough to not impact performance."
+      "id": "prompt-as-control-plane",
+      "title": "The Prompt Pipeline IS the Control Plane",
+      "description": "What the model sees determines how it behaves. The prompt assembly pipeline controls which information is available, in what order, and with what emphasis. This makes the prompt builder the agent's true control plane -- not the tool dispatch, not the permission system, but the input construction pipeline. Understanding this framing is crucial: changing the prompt changes the agent's behavior more directly than changing any other component.",
+      "alternatives": "Treating the system prompt as a static configuration file misses the opportunity to dynamically control behavior. Treating it as a free-form string template loses the structure that makes predictable assembly possible."
     }
   ]
 }

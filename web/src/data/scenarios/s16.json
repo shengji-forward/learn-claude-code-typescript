@@ -1,0 +1,38 @@
+{
+  "version": "s16",
+  "title": "Team Protocols",
+  "description": "Request-response protocols with durable request records",
+  "steps": [
+    {
+      "type": "user_message",
+      "content": "Work is done. Shut down the team gracefully.",
+      "annotation": "Can't just kill threads -- need coordinated shutdown via protocol"
+    },
+    {
+      "type": "tool_call",
+      "content": "shutdown_request(\n  teammate: \"backend-dev\",\n  request_id: \"req_abc123\"\n)",
+      "toolName": "shutdown_teammate",
+      "annotation": "request_id correlates the request with the response"
+    },
+    {
+      "type": "system_event",
+      "content": "[RequestRecord] req_abc123 created\n  State: pending\n  Envelope: { type: \"shutdown_request\", from: \"lead\", to: \"backend-dev\", request_id: \"req_abc123\" }\n  Written to: .team/requests/req_abc123.json",
+      "annotation": "Durable request record persisted to disk -- survives context compression"
+    },
+    {
+      "type": "system_event",
+      "content": "[backend-dev] Received shutdown request req_abc123\n  Current task: none (idle)\n  Decision: approve\n  -> lead inbox: { type: \"shutdown_response\", request_id: \"req_abc123\", approved: true }",
+      "annotation": "Teammate decides based on its own state; response references same request_id"
+    },
+    {
+      "type": "system_event",
+      "content": "[RequestRecord] req_abc123 updated\n  State: pending -> approved\n  Response: { approved: true }\n  backend-dev thread stopped\n  Status: idle -> shutdown",
+      "annotation": "State transition is the teaching spine: pending -> approved is what matters"
+    },
+    {
+      "type": "assistant_text",
+      "content": "backend-dev shut down gracefully. The protocol used a durable request record with request_id correlation. The same pattern handles plan approval and handoff.",
+      "annotation": "One pattern (request_id + state machine), multiple coordination applications"
+    }
+  ]
+}
