@@ -1,0 +1,44 @@
+{
+  "version": "s08",
+  "title": "Hook System",
+  "description": "Lifecycle hooks observe and extend the agent loop without rewriting it",
+  "steps": [
+    {
+      "type": "user_message",
+      "content": "Fix the failing test in auth.test.ts",
+      "annotation": "A routine task that will trigger lifecycle hooks at each stage"
+    },
+    {
+      "type": "system_event",
+      "content": "[Hook: on_start] Session resumed. Tool usage count: 47. Active hooks: audit_logger, tool_timer, error_tracer.",
+      "annotation": "on_start hook fires when the loop begins -- audit hook records session state"
+    },
+    {
+      "type": "tool_call",
+      "content": "cat auth.test.ts",
+      "toolName": "bash",
+      "annotation": "Model reads the test file"
+    },
+    {
+      "type": "system_event",
+      "content": "[Hook: pre_tool] tool=bash, cmd='cat auth.test.ts'\n[Hook: tool_timer] Starting timer for bash call...",
+      "annotation": "pre_tool hook fires before execution -- timer hook starts measuring"
+    },
+    {
+      "type": "tool_result",
+      "content": "// test file contents...",
+      "toolName": "bash",
+      "annotation": "Tool executes normally"
+    },
+    {
+      "type": "system_event",
+      "content": "[Hook: post_tool] tool=bash, duration=0.3s, status=success\n[Hook: audit_logger] Logged: bash cat auth.test.ts -> success (0.3s)",
+      "annotation": "post_tool hook fires after execution -- audit hook records the result"
+    },
+    {
+      "type": "assistant_text",
+      "content": "I can see the test expects a different token format. Let me fix it.",
+      "annotation": "Hooks observe and annotate without disrupting the main loop flow"
+    }
+  ]
+}

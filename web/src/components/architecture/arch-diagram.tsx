@@ -35,34 +35,25 @@ function getLayerColorClasses(versionId: string): {
     versionsData.versions.find((v) => v.id === versionId) as { layer?: string } | undefined;
   const layer = v?.layer;
   switch (layer) {
-    case "core":
-    case "tools":
+    case "loop":
       return {
         border: "border-blue-500",
         bg: "bg-blue-500/10",
       };
-    case "hardening":
     case "planning":
       return {
         border: "border-emerald-500",
         bg: "bg-emerald-500/10",
       };
-    case "runtime":
-    case "concurrency":
+    case "persistence":
       return {
         border: "border-amber-500",
         bg: "bg-amber-500/10",
       };
-    case "platform":
-    case "collaboration":
+    case "teams":
       return {
         border: "border-red-500",
         bg: "bg-red-500/10",
-      };
-    case "memory":
-      return {
-        border: "border-purple-500",
-        bg: "bg-purple-500/10",
       };
     default:
       return {

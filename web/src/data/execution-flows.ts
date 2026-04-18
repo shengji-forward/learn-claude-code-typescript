@@ -10,148 +10,6 @@ const COL_CENTER = FLOW_WIDTH / 2;
 const COL_LEFT = 140;
 const COL_RIGHT = FLOW_WIDTH - 140;
 
-const GENERIC_FLOWS: Record<string, FlowDefinition> = {
-  s07: {
-    nodes: [
-      { id: "intent", label: "Model Intent", type: "start", x: COL_CENTER, y: 30 },
-      { id: "normalize", label: "Normalize\nAction", type: "process", x: COL_CENTER, y: 110 },
-      { id: "policy", label: "Permission\nPolicy?", type: "decision", x: COL_CENTER, y: 200 },
-      { id: "ask", label: "Ask User /\nReturn Deny", type: "subprocess", x: COL_LEFT, y: 300 },
-      { id: "execute", label: "Execute Tool", type: "subprocess", x: COL_RIGHT, y: 300 },
-      { id: "append", label: "Append Structured\nPermission Result", type: "process", x: COL_CENTER, y: 410 },
-      { id: "loop", label: "Continue Loop", type: "end", x: COL_CENTER, y: 500 },
-    ],
-    edges: [
-      { from: "intent", to: "normalize" },
-      { from: "normalize", to: "policy" },
-      { from: "policy", to: "ask", label: "deny / ask" },
-      { from: "policy", to: "execute", label: "allow" },
-      { from: "ask", to: "append" },
-      { from: "execute", to: "append" },
-      { from: "append", to: "loop" },
-    ],
-  },
-  s08: {
-    nodes: [
-      { id: "loop", label: "Main Loop", type: "start", x: COL_CENTER, y: 30 },
-      { id: "event", label: "Emit Lifecycle\nEvent", type: "process", x: COL_CENTER, y: 110 },
-      { id: "hook_check", label: "Hooks\nRegistered?", type: "decision", x: COL_CENTER, y: 200 },
-      { id: "dispatch", label: "Dispatch Hook\nEnvelope", type: "subprocess", x: COL_LEFT, y: 300 },
-      { id: "tool", label: "Run Core Tool\nPath", type: "subprocess", x: COL_RIGHT, y: 300 },
-      { id: "side_effect", label: "Audit / Trace /\nPolicy Side Effects", type: "process", x: COL_LEFT, y: 410 },
-      { id: "append", label: "Append Result\nand Continue", type: "end", x: COL_CENTER, y: 500 },
-    ],
-    edges: [
-      { from: "loop", to: "event" },
-      { from: "event", to: "hook_check" },
-      { from: "hook_check", to: "dispatch", label: "yes" },
-      { from: "hook_check", to: "tool", label: "no" },
-      { from: "dispatch", to: "side_effect" },
-      { from: "dispatch", to: "tool", label: "observe" },
-      { from: "side_effect", to: "append" },
-      { from: "tool", to: "append" },
-    ],
-  },
-  s09: {
-    nodes: [
-      { id: "start", label: "New Turn", type: "start", x: COL_CENTER, y: 30 },
-      { id: "load", label: "Load Relevant\nMemory", type: "subprocess", x: COL_CENTER, y: 110 },
-      { id: "assemble", label: "Assemble Prompt\nwith Memory", type: "process", x: COL_CENTER, y: 190 },
-      { id: "tool", label: "Run Work", type: "subprocess", x: COL_LEFT, y: 290 },
-      { id: "extract", label: "Extract Durable\nFacts", type: "process", x: COL_RIGHT, y: 290 },
-      { id: "persist", label: "Persist Memory", type: "subprocess", x: COL_RIGHT, y: 380 },
-      { id: "end", label: "Next Session /\nNext Turn", type: "end", x: COL_CENTER, y: 470 },
-    ],
-    edges: [
-      { from: "start", to: "load" },
-      { from: "load", to: "assemble" },
-      { from: "assemble", to: "tool" },
-      { from: "tool", to: "extract" },
-      { from: "extract", to: "persist" },
-      { from: "persist", to: "end" },
-    ],
-  },
-  s10: {
-    nodes: [
-      { id: "policy", label: "Stable Policy", type: "start", x: COL_CENTER, y: 30 },
-      { id: "runtime", label: "Runtime State", type: "process", x: COL_LEFT, y: 120 },
-      { id: "memory", label: "Memory /\nTask Context", type: "process", x: COL_RIGHT, y: 120 },
-      { id: "assemble", label: "Prompt Section\nAssembly", type: "subprocess", x: COL_CENTER, y: 220 },
-      { id: "model", label: "Model Call", type: "process", x: COL_CENTER, y: 320 },
-      { id: "tool", label: "Tool Loop / Text\nResponse", type: "decision", x: COL_CENTER, y: 410 },
-      { id: "end", label: "Append and\nContinue", type: "end", x: COL_CENTER, y: 500 },
-    ],
-    edges: [
-      { from: "policy", to: "runtime" },
-      { from: "policy", to: "memory" },
-      { from: "runtime", to: "assemble" },
-      { from: "memory", to: "assemble" },
-      { from: "assemble", to: "model" },
-      { from: "model", to: "tool" },
-      { from: "tool", to: "end", label: "visible input" },
-    ],
-  },
-  s11: {
-    nodes: [
-      { id: "tool", label: "Tool Result", type: "start", x: COL_CENTER, y: 30 },
-      { id: "error", label: "Error?", type: "decision", x: COL_CENTER, y: 120 },
-      { id: "append", label: "Append Result", type: "process", x: COL_RIGHT, y: 220 },
-      { id: "classify", label: "Classify Error", type: "subprocess", x: COL_LEFT, y: 220 },
-      { id: "branch", label: "Retry / Fallback /\nAsk User / Stop", type: "decision", x: COL_LEFT, y: 330 },
-      { id: "reason", label: "Write Continuation\nReason", type: "process", x: COL_CENTER, y: 430 },
-      { id: "loop", label: "Continue or Exit", type: "end", x: COL_CENTER, y: 520 },
-    ],
-    edges: [
-      { from: "tool", to: "error" },
-      { from: "error", to: "append", label: "no" },
-      { from: "error", to: "classify", label: "yes" },
-      { from: "classify", to: "branch" },
-      { from: "append", to: "loop" },
-      { from: "branch", to: "reason" },
-      { from: "reason", to: "loop" },
-    ],
-  },
-  s14: {
-    nodes: [
-      { id: "tick", label: "Cron Tick", type: "start", x: COL_CENTER, y: 30 },
-      { id: "match", label: "Rule Match?", type: "decision", x: COL_CENTER, y: 120 },
-      { id: "sleep", label: "Wait for Next\nTick", type: "end", x: COL_RIGHT, y: 120 },
-      { id: "spawn", label: "Create Runtime\nTask", type: "subprocess", x: COL_LEFT, y: 240 },
-      { id: "queue", label: "Queue for\nBackground Runtime", type: "process", x: COL_LEFT, y: 340 },
-      { id: "notify", label: "Notify Runtime /\nWrite Schedule Event", type: "process", x: COL_CENTER, y: 440 },
-      { id: "end", label: "Execution Continues\nElsewhere", type: "end", x: COL_CENTER, y: 530 },
-    ],
-    edges: [
-      { from: "tick", to: "match" },
-      { from: "match", to: "sleep", label: "no" },
-      { from: "match", to: "spawn", label: "yes" },
-      { from: "spawn", to: "queue" },
-      { from: "queue", to: "notify" },
-      { from: "notify", to: "end" },
-    ],
-  },
-  s19: {
-    nodes: [
-      { id: "request", label: "Capability\nRequest", type: "start", x: COL_CENTER, y: 30 },
-      { id: "discover", label: "Discover Native /\nPlugin / MCP", type: "process", x: COL_CENTER, y: 120 },
-      { id: "route", label: "Route to\nCapability", type: "decision", x: COL_CENTER, y: 210 },
-      { id: "native", label: "Native Tool", type: "subprocess", x: COL_LEFT, y: 320 },
-      { id: "external", label: "Plugin or MCP\nServer Call", type: "subprocess", x: COL_RIGHT, y: 320 },
-      { id: "normalize", label: "Normalize Result /\nApply Policy", type: "process", x: COL_CENTER, y: 430 },
-      { id: "append", label: "Append Back to\nMain Loop", type: "end", x: COL_CENTER, y: 520 },
-    ],
-    edges: [
-      { from: "request", to: "discover" },
-      { from: "discover", to: "route" },
-      { from: "route", to: "native", label: "local" },
-      { from: "route", to: "external", label: "plugin / mcp" },
-      { from: "native", to: "normalize" },
-      { from: "external", to: "normalize" },
-      { from: "normalize", to: "append" },
-    ],
-  },
-};
-
 export const EXECUTION_FLOWS: Record<string, FlowDefinition> = {
   s01: {
     nodes: [
@@ -284,7 +142,7 @@ export const EXECUTION_FLOWS: Record<string, FlowDefinition> = {
       { from: "append", to: "compress_check" },
     ],
   },
-  s12: {
+  s07: {
     nodes: [
       { id: "start", label: "User Input", type: "start", x: COL_CENTER, y: 30 },
       { id: "llm", label: "LLM Call", type: "process", x: COL_CENTER, y: 110 },
@@ -309,7 +167,7 @@ export const EXECUTION_FLOWS: Record<string, FlowDefinition> = {
       { from: "append", to: "llm" },
     ],
   },
-  s13: {
+  s08: {
     nodes: [
       { id: "start", label: "User Input", type: "start", x: COL_CENTER, y: 30 },
       { id: "llm", label: "LLM Call", type: "process", x: COL_CENTER, y: 110 },
@@ -334,7 +192,7 @@ export const EXECUTION_FLOWS: Record<string, FlowDefinition> = {
       { from: "notify", to: "llm" },
     ],
   },
-  s15: {
+  s09: {
     nodes: [
       { id: "start", label: "User Input", type: "start", x: COL_CENTER, y: 30 },
       { id: "llm", label: "LLM Call\n(team lead)", type: "process", x: COL_CENTER, y: 110 },
@@ -361,7 +219,7 @@ export const EXECUTION_FLOWS: Record<string, FlowDefinition> = {
       { from: "append", to: "llm" },
     ],
   },
-  s16: {
+  s10: {
     nodes: [
       { id: "start", label: "User Input", type: "start", x: COL_CENTER, y: 30 },
       { id: "llm", label: "LLM Call\n(team lead)", type: "process", x: COL_CENTER, y: 110 },
@@ -388,7 +246,7 @@ export const EXECUTION_FLOWS: Record<string, FlowDefinition> = {
       { from: "append", to: "llm" },
     ],
   },
-  s17: {
+  s11: {
     nodes: [
       { id: "start", label: "Resume /\nNew Work", type: "start", x: COL_CENTER, y: 30 },
       { id: "identity", label: "Ensure Identity\nContext", type: "process", x: COL_CENTER, y: 110 },
@@ -414,7 +272,7 @@ export const EXECUTION_FLOWS: Record<string, FlowDefinition> = {
       { from: "claim", to: "identity", label: "resume work" },
     ],
   },
-  s18: {
+  s12: {
     nodes: [
       { id: "start", label: "User Input", type: "start", x: COL_CENTER, y: 30 },
       { id: "llm", label: "LLM Call", type: "process", x: COL_CENTER, y: 110 },
@@ -454,5 +312,5 @@ export const EXECUTION_FLOWS: Record<string, FlowDefinition> = {
 };
 
 export function getFlowForVersion(version: string): FlowDefinition | null {
-  return GENERIC_FLOWS[version] ?? EXECUTION_FLOWS[version] ?? null;
+  return EXECUTION_FLOWS[version] ?? null;
 }

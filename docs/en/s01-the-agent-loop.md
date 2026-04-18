@@ -1,8 +1,8 @@
 # s01: The Agent Loop
 
-`[ s01 ] > s02 > s03 > s04 > s05 > s06 > s07 > s08 > s09 > s10 > s11 > s12 > s13 > s14 > s15 > s16 > s17 > s18 > s19`
+`[ s01 ] s02 > s03 > s04 > s05 > s06 | s07 > s08 > s09 > s10 > s11 > s12`
 
-> "One loop and bash is all you need" - one tool plus one loop gives you a working agent.
+> *"One loop & Bash is all you need"* -- one tool + one loop = an agent.
 >
 > **Harness layer**: The loop -- the model's first connection to the real world.
 
@@ -20,20 +20,20 @@ A language model can reason about code, but it can't *touch* the real world -- c
                     ^                |
                     |   tool_result  |
                     +----------------+
-                    (repeat until stop_reason != "tool_use")
+                    (loop until stop_reason != "tool_use")
 ```
 
 One exit condition controls the entire flow. The loop runs until the model stops calling tools.
 
 ## How It Works
 
-1. Start with a user message.
+1. User prompt becomes the first message.
 
 ```typescript
 messages.push({ role: "user", content: query });
 ```
 
-1. Call the model with `messages` and `tools`.
+2. Send messages + tool definitions to the LLM.
 
 ```typescript
 const response = await client.messages.create({
@@ -45,20 +45,20 @@ const response = await client.messages.create({
 });
 ```
 
-1. Append assistant output and exit when no tool call is requested.
+3. Append the assistant response. Check `stop_reason` -- if the model didn't call a tool, we're done.
 
 ```typescript
 messages.push({ role: "assistant", content: response.content });
 if (response.stop_reason !== "tool_use") return;
 ```
 
-1. Execute each tool call, return `tool_result`, and continue.
+4. Execute each tool call, collect results, append as a user message. Loop back to step 2.
 
 ```typescript
 const results = [];
 for (const block of response.content) {
   if (block.type !== "tool_use") continue;
-  const output = await runBash(block.input.command);
+  const output = await runBash((block.input as { command: string }).command);
   results.push({ type: "tool_result", tool_use_id: block.id, content: output });
 }
 messages.push({ role: "user", content: results });
@@ -69,9 +69,7 @@ messages.push({ role: "user", content: results });
 **Assembled into one function:**
 
 ```typescript
-// Assembled into one function:
-function agentLoop(query: string) {
-    const messages = [{ role: "user", content: query }];
+async function agentLoop(messages: Message[]): Promise<void> {
     while (true) {
         const response = await client.messages.create({
             model: MODEL,
@@ -80,16 +78,19 @@ function agentLoop(query: string) {
             tools: TOOLS,
             max_tokens: 8000,
         });
-        messages.push({ role: "assistant", content: response.content });
+        messages.push({
+            role: "assistant",
+            content: response.content,
+        });
 
         if (response.stop_reason !== "tool_use") {
             return;
         }
 
-        const results = [];
+        const results: ToolResultBlock[] = [];
         for (const block of response.content) {
             if (block.type === "tool_use") {
-                const output = await runBash(block.input["command"]);
+                const output = await runBash(block.input.command);
                 results.push({
                     type: "tool_result",
                     tool_use_id: block.id,
@@ -97,7 +98,10 @@ function agentLoop(query: string) {
                 });
             }
         }
-        messages.push({ role: "user", content: results });
+        messages.push({
+            role: "user",
+            content: results,
+        });
     }
 }
 ```
@@ -108,10 +112,10 @@ That's the entire agent in under 30 lines. Everything else in this course layers
 
 | Component     | Before     | After                          |
 |---------------|------------|--------------------------------|
-| Agent loop    | (none)     | `while True` + stop_reason     |
+| Agent loop    | (none)     | `while (true)` + `stop_reason` |
 | Tools         | (none)     | `bash` (one tool)              |
 | Messages      | (none)     | Accumulating list              |
-| Control flow  | (none)     | `stop_reason != "tool_use"`    |
+| Control flow  | (none)     | `stop_reason !== "tool_use"`   |
 
 
 ## Try It

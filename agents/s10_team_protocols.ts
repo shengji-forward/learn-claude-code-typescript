@@ -2,10 +2,10 @@
 // Harness: coordination patterns -- request-response protocols for agent negotiation.
 // @ts-nocheck
 /**
- * s16_team_protocols.ts - Team Protocols
+ * s10_team_protocols.ts - Team Protocols
  *
  * Shutdown protocol and plan approval protocol, both using the same
- * request_id correlation pattern. Builds on s15's team messaging.
+ * request_id correlation pattern. Builds on s09's team messaging.
  *
  *     Shutdown FSM: pending -> approved | rejected
  *
@@ -518,7 +518,7 @@ class TeammateManager {
                 inboxDir: INBOX_DIR,
                 modelId: MODEL,
                 apiBase: process.env.ANTHROPIC_BASE_URL,
-                sessionMode: "s16",
+                sessionMode: "s10",
                 protocolMode: "protocols",
             },
             ...(workerPath.endsWith(".ts")
@@ -1042,12 +1042,12 @@ async function main(): Promise<void> {
         });
     };
 
-    console.log("\nSession 16: Team Protocols");
+    console.log("\nSession 10: Team Protocols");
     console.log("Shutdown protocol and plan approval protocol with request_id correlation.\n");
 
     try {
         while (true) {
-            const query = await question("\x1b[36ms16 >> \x1b[0m");
+            const query = await question("\x1b[36ms10 >> \x1b[0m");
 
             if (query.trim().toLowerCase() === "q" || query.trim() === "exit" || query.trim() === "") {
                 break;

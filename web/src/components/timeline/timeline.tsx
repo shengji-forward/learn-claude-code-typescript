@@ -9,39 +9,45 @@ import { cn } from "@/lib/utils";
 import versionsData from "@/data/generated/versions.json";
 
 const LAYER_DOT_BG: Record<string, string> = {
+  loop: "bg-blue-500",
+  planning: "bg-emerald-500",
+  persistence: "bg-amber-500",
+  teams: "bg-red-500",
   core: "bg-blue-500",
   hardening: "bg-emerald-500",
   runtime: "bg-amber-500",
   platform: "bg-red-500",
-  // Legacy aliases
   tools: "bg-blue-500",
-  planning: "bg-emerald-500",
   memory: "bg-purple-500",
   concurrency: "bg-amber-500",
   collaboration: "bg-red-500",
 };
 
 const LAYER_LINE_BG: Record<string, string> = {
+  loop: "bg-blue-500/30",
+  planning: "bg-emerald-500/30",
+  persistence: "bg-amber-500/30",
+  teams: "bg-red-500/30",
   core: "bg-blue-500/30",
   hardening: "bg-emerald-500/30",
   runtime: "bg-amber-500/30",
   platform: "bg-red-500/30",
-  // Legacy aliases
   tools: "bg-blue-500/30",
-  planning: "bg-emerald-500/30",
   memory: "bg-purple-500/30",
   concurrency: "bg-amber-500/30",
   collaboration: "bg-red-500/30",
 };
 
 const LAYER_BAR_BG: Record<string, string> = {
+  loop: "bg-blue-500",
+  planning: "bg-emerald-500",
+  persistence: "bg-amber-500",
+  teams: "bg-red-500",
   core: "bg-blue-500",
   hardening: "bg-emerald-500",
   runtime: "bg-amber-500",
   platform: "bg-red-500",
-  // Legacy aliases
   tools: "bg-blue-500",
-  planning: "bg-emerald-500",
   memory: "bg-purple-500",
   concurrency: "bg-amber-500",
   collaboration: "bg-red-500",

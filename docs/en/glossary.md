@@ -6,9 +6,9 @@ This glossary collects the terms that matter most to the teaching mainline -- th
 
 ## Recommended Companion Docs
 
-- [`entity-map.md`](./entity-map.md) for layer boundaries
+- [`entity-map.md`](../extras/en/entity-map.md) for layer boundaries
 - [`data-structures.md`](./data-structures.md) for record shapes
-- [`s13a-runtime-task-model.md`](./s13a-runtime-task-model.md) if you keep mixing up different kinds of "task"
+- [`s13a-runtime-task-model.md`](../extras/en/s13a-runtime-task-model.md) if you keep mixing up different kinds of "task"
 
 ## Agent
 

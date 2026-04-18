@@ -471,6 +471,13 @@ interface ToolResultBlock {
     content: string;
 }
 
+interface TextBlock {
+    type: "text";
+    text: string;
+}
+
+type UserContentBlock = ToolResultBlock | TextBlock;
+
 /**
  * Agent loop with reminder system
  *
@@ -483,19 +490,6 @@ async function agentLoop(
     messages: Message[],
     roundsSinceTodo: { value: number }
 ): Promise<void> {
-    // Inject reminder if needed
-    // TypeScript: Check rounds counter
-    // Python: if rounds_since_todo >= 3
-    if (roundsSinceTodo.value >= 3) {
-        const reminder: Message = {
-            role: "user",
-            content:
-                "Reminder: You have an active todo list. Please update it with your progress.",
-        };
-        messages.push(reminder);
-        roundsSinceTodo.value = 0;
-    }
-
     while (true) {
         const response = await client.messages.create({
             model: MODEL,
@@ -514,7 +508,7 @@ async function agentLoop(
             return;
         }
 
-        const results: ToolResultBlock[] = [];
+        const results: UserContentBlock[] = [];
         let todoUsed = false;
 
         for (const block of response.content) {
@@ -532,9 +526,6 @@ async function agentLoop(
 
                 console.log(output.slice(0, 200));
 
-                // Track if todo was used
-                // TypeScript: String comparison
-                // Python: if block.name == "todo"
                 if (block.name === "todo") {
                     todoUsed = true;
                 }
@@ -547,15 +538,21 @@ async function agentLoop(
             }
         }
 
+        roundsSinceTodo.value = todoUsed ? 0 : roundsSinceTodo.value + 1;
+
+        // Append (not prepend) the nag reminder so the model sees it after the
+        // tool_results on its next turn.
+        if (roundsSinceTodo.value >= 3) {
+            results.push({
+                type: "text",
+                text: "<reminder>Update your todos.</reminder>",
+            });
+        }
+
         messages.push({
             role: "user",
             content: results,
         });
-
-        // Reset counter if todo was used
-        // TypeScript: Conditional assignment
-        // Python: rounds_since_todo = 0 if todo_used else rounds_since_todo + 1
-        roundsSinceTodo.value = todoUsed ? 0 : roundsSinceTodo.value + 1;
     }
 }
 

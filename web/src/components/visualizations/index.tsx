@@ -20,7 +20,7 @@ export function SessionVisualization({ version }: { version: string }) {
   const t = useTranslations("viz");
   const title = t(version);
 
-  // s07-s19 use the generic session overview component
+  // s07-s12 (and any extras) use the generic session overview component
   if (!visualizations[version]) {
     return <GenericSessionOverview version={version} title={title} />;
   }

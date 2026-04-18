@@ -1,0 +1,51 @@
+{
+  "version": "s07",
+  "title": "Permission System",
+  "description": "Agent checks permission policy before executing any tool",
+  "steps": [
+    {
+      "type": "user_message",
+      "content": "Delete the old log files and install the new dependency",
+      "annotation": "Request includes a potentially dangerous operation (delete) and a safe one (install)"
+    },
+    {
+      "type": "assistant_text",
+      "content": "I'll handle both requests. Let me check permissions first.",
+      "annotation": "Agent routes both actions through the permission gate"
+    },
+    {
+      "type": "tool_call",
+      "content": "rm -rf /var/log/old/*.log",
+      "toolName": "bash",
+      "annotation": "Model proposes a file deletion -- permission gate checks before execution"
+    },
+    {
+      "type": "system_event",
+      "content": "[Permission] Action: file_delete, Target: /var/log/old/*.log\nPolicy: ask (destructive file operation)\nPrompting user for confirmation...",
+      "annotation": "The deny/mode/allow/ask pipeline reaches 'ask' for this destructive action"
+    },
+    {
+      "type": "tool_result",
+      "content": "Permission denied: destructive file operation requires user confirmation. Reason: rm -rf targets outside workspace.",
+      "toolName": "bash",
+      "annotation": "Permission result becomes visible context -- model sees why the action was blocked"
+    },
+    {
+      "type": "tool_call",
+      "content": "npm install better-sqlite3",
+      "toolName": "bash",
+      "annotation": "Install command is auto-approved by the allow rule"
+    },
+    {
+      "type": "tool_result",
+      "content": "added 1 package in 2s",
+      "toolName": "bash",
+      "annotation": "Safe operation passes through the allow stage of the pipeline"
+    },
+    {
+      "type": "assistant_text",
+      "content": "The dependency is installed. The file deletion was blocked because it targets files outside the workspace. Would you like me to delete only the workspace-local logs instead?",
+      "annotation": "Model reasons over the permission denial and proposes a safer alternative"
+    }
+  ]
+}

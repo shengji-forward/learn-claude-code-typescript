@@ -1,0 +1,56 @@
+{
+  "version": "s09",
+  "title": "Memory System",
+  "description": "Agent loads cross-session memory before work and persists new facts after",
+  "steps": [
+    {
+      "type": "user_message",
+      "content": "Continue working on the auth module from yesterday",
+      "annotation": "User references previous session -- memory system should provide context"
+    },
+    {
+      "type": "system_event",
+      "content": "[Memory Load] Loaded 3 relevant memories:\n  - User prefers TypeScript strict mode (preference)\n  - Project uses JWT with RS256 (project constraint)\n  - Auth module located at src/auth/ (environment fact)",
+      "annotation": "Typed memory buckets loaded before prompt assembly"
+    },
+    {
+      "type": "assistant_text",
+      "content": "I remember we were using JWT with RS256. Let me check the auth module status.",
+      "annotation": "Agent uses loaded memory to orient itself without re-reading everything"
+    },
+    {
+      "type": "tool_call",
+      "content": "ls src/auth/",
+      "toolName": "bash",
+      "annotation": "Agent confirms environment facts from memory"
+    },
+    {
+      "type": "tool_result",
+      "content": "auth.service.ts\ntoken.util.ts\nauth.test.ts",
+      "toolName": "bash",
+      "annotation": "Memory was accurate -- auth module is where expected"
+    },
+    {
+      "type": "tool_call",
+      "content": "cat src/auth/token.util.ts",
+      "toolName": "bash",
+      "annotation": "Agent continues work informed by memory"
+    },
+    {
+      "type": "tool_result",
+      "content": "// token utility with RS256 signing...",
+      "toolName": "bash",
+      "annotation": "Work proceeds using memory-derived context"
+    },
+    {
+      "type": "system_event",
+      "content": "[Memory Persist] Extracted new facts:\n  - Token expiry set to 1 hour (environment fact)\n  - Tests cover login and refresh flows (observation)",
+      "annotation": "After work, new durable facts are extracted and persisted for future sessions"
+    },
+    {
+      "type": "assistant_text",
+      "content": "The auth module looks good. Token expiry is set to 1 hour with RS256 signing, matching the project constraint.",
+      "annotation": "Memory gives direction; current observation gives truth"
+    }
+  ]
+}

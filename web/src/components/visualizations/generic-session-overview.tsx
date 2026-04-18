@@ -23,156 +23,21 @@ interface OverviewCopy {
 }
 
 const SURFACE_CLASSES: Record<string, string> = {
-  core: "from-blue-500/10 via-blue-500/5 to-transparent",
-  hardening: "from-emerald-500/10 via-emerald-500/5 to-transparent",
-  runtime: "from-amber-500/10 via-amber-500/5 to-transparent",
-  platform: "from-red-500/10 via-red-500/5 to-transparent",
+  loop: "from-blue-500/10 via-blue-500/5 to-transparent",
+  planning: "from-emerald-500/10 via-emerald-500/5 to-transparent",
+  persistence: "from-amber-500/10 via-amber-500/5 to-transparent",
+  teams: "from-red-500/10 via-red-500/5 to-transparent",
 };
 
 const RING_CLASSES: Record<string, string> = {
-  core: "ring-blue-500/20",
-  hardening: "ring-emerald-500/20",
-  runtime: "ring-amber-500/20",
-  platform: "ring-red-500/20",
+  loop: "ring-blue-500/20",
+  planning: "ring-emerald-500/20",
+  persistence: "ring-amber-500/20",
+  teams: "ring-red-500/20",
 };
 
 const COPY: Record<string, OverviewCopy> = {
   s07: {
-    eyebrow: "Intent must pass a gate before execution",
-    summary:
-      "The permission chapter should teach a control gate, not scattered safety checks. Model intent becomes executable action only after policy classification.",
-    sections: [
-      {
-        title: "Normalize the request first",
-        body: "Convert raw tool calls into a structured intent with action type, target, and risk level before making any permission decision.",
-      },
-      {
-        title: "Keep policy separate",
-        body: "Read-only modes, allowlists, dangerous-command blocks, and ask-before-run rules should live in one permission plane.",
-      },
-      {
-        title: "Always write back the outcome",
-        body: "Allow, deny, and ask all need to flow back into the loop so the model can reason over what happened next.",
-      },
-    ],
-    flowLabel: "Permission Pipeline",
-    flow: ["Model proposes action", "Intent is classified", "Policy decides", "Execute or return denial"],
-    cautionLabel: "Common mistake",
-    caution:
-      "Permission is not just a few if statements. It is a gate in front of execution with its own control-plane semantics.",
-    outcomeLabel: "You should be able to build",
-    outcome:
-      "A shared permission check that gives every tool the same allow / deny / ask contract.",
-  },
-  s08: {
-    eyebrow: "Extend the loop without rewriting it",
-    summary:
-      "Hooks let you add audit trails, tracing, policy side effects, and instrumentation around the loop while keeping the loop itself small and legible.",
-    sections: [
-      {
-        title: "The loop stays minimal",
-        body: "Core state progression stays in the loop. Extra behavior hangs off lifecycle points like pre_tool, post_tool, and on_error.",
-      },
-      {
-        title: "Events need a stable shape",
-        body: "Hooks should receive normalized lifecycle events with tool name, input, result, error, and duration, not ad hoc strings.",
-      },
-      {
-        title: "Side effects stay decoupled",
-        body: "That keeps auditing, metrics, or repair hints from leaking into every tool implementation.",
-      },
-    ],
-    flowLabel: "Lifecycle Events",
-    flow: ["Loop advances", "Event emitted", "Hooks observe", "Side effects write back"],
-    cautionLabel: "Common mistake",
-    caution:
-      "A hook system should observe and extend the loop, not secretly replace the loop's state machine.",
-    outcomeLabel: "You should be able to build",
-    outcome:
-      "A lifecycle event registry with multiple hooks attached to one stable execution loop.",
-  },
-  s09: {
-    eyebrow: "Persist only what survives sessions",
-    summary:
-      "Memory is for cross-session facts that cannot be re-derived cheaply, not for storing every conversation turn forever.",
-    sections: [
-      {
-        title: "Use typed memory buckets",
-        body: "Preferences, project constraints, and durable environment facts should be separated from temporary observations.",
-      },
-      {
-        title: "Read and write at clear moments",
-        body: "Load relevant memory before prompt assembly. Extract and persist new memory after the work is done.",
-      },
-      {
-        title: "Memory is not context",
-        body: "Short-term messages carry the live process. Long-term memory keeps only compressed, durable facts.",
-      },
-    ],
-    flowLabel: "Memory Lifecycle",
-    flow: ["Load memory", "Assemble input", "Finish work", "Extract and persist"],
-    cautionLabel: "Common mistake",
-    caution:
-      "Memory is not an infinite history log. The hard part is deciding what deserves to survive.",
-    outcomeLabel: "You should be able to build",
-    outcome:
-      "A clear separation between messages[], compacted summaries, and cross-session memory.",
-  },
-  s10: {
-    eyebrow: "Prompting becomes an assembly pipeline",
-    summary:
-      "The system prompt should be taught as a pipeline that assembles stable policy, runtime state, tools, and memory in a predictable order.",
-    sections: [
-      {
-        title: "Separate stable policy",
-        body: "Role, safety rules, and non-negotiable constraints should not be tangled with temporary runtime details.",
-      },
-      {
-        title: "Assemble runtime fragments explicitly",
-        body: "Workspace state, available tools, memory, task state, and recovery hints need a visible assembly order.",
-      },
-      {
-        title: "Input is a control plane",
-        body: "The ordering and boundaries of prompt fragments control what the model sees and how it reasons.",
-      },
-    ],
-    flowLabel: "Prompt Assembly",
-    flow: ["Stable policy", "Runtime state", "Tool and memory injection", "Final model input"],
-    cautionLabel: "Common mistake",
-    caution:
-      "Do not teach this as mystical prompt engineering. Teach data sources, assembly order, and information boundaries.",
-    outcomeLabel: "You should be able to build",
-    outcome:
-      "A prompt builder pipeline instead of a single giant prompt string.",
-  },
-  s11: {
-    eyebrow: "Recovery keeps the system moving",
-    summary:
-      "A high-completion agent is not error-free. It is explicit about why it is retrying, degrading, or stopping after each failure.",
-    sections: [
-      {
-        title: "Classify failures first",
-        body: "Permission denials, tool crashes, missing dependencies, timeouts, and write conflicts should not all use the same retry branch.",
-      },
-      {
-        title: "Continuation reasons stay explicit",
-        body: "Before continuing, record whether this branch is a retry, fallback, or user-confirmation path.",
-      },
-      {
-        title: "Recovery needs hard limits",
-        body: "Caps on retries, fallback paths, and stop conditions prevent silent infinite loops.",
-      },
-    ],
-    flowLabel: "Recovery Branches",
-    flow: ["Failure detected", "Reason classified", "Recovery chosen", "Continue with context"],
-    cautionLabel: "Common mistake",
-    caution:
-      "Recovery is not just a try/except wrapper. The recovery reason itself must become visible state.",
-    outcomeLabel: "You should be able to build",
-    outcome:
-      "Explicit continuation reasons that make retry / fallback / stop into understandable state transitions.",
-  },
-  s12: {
     eyebrow: "Turn session steps into a durable work graph",
     summary:
       "The task system is not just a saved todo list. It turns work into durable records with dependency edges so progress can unlock later work across turns.",
@@ -183,7 +48,7 @@ const COPY: Record<string, OverviewCopy> = {
       },
       {
         title: "Dependency edges must stay explicit",
-        body: "Fields like blockedBy, blocks, and status make it clear why a task cannot start yet and which downstream work becomes eligible next.",
+        body: "Fields like blockedBy and status make it clear why a task cannot start yet and which downstream work becomes eligible next.",
       },
       {
         title: "The board owns unlock logic",
@@ -199,7 +64,7 @@ const COPY: Record<string, OverviewCopy> = {
     outcome:
       "A minimal task board with dependency and unlock logic, not just a session-scoped todo list.",
   },
-  s13: {
+  s08: {
     eyebrow: "Separate goal records from running slots",
     summary:
       "The real lesson in background tasks is that the durable task goal stays on the board while each live execution gets its own runtime record and returns through notifications.",
@@ -226,34 +91,7 @@ const COPY: Record<string, OverviewCopy> = {
     outcome:
       "A background execution path that returns through runtime records and notifications instead of blocking the foreground loop.",
   },
-  s14: {
-    eyebrow: "Time becomes another trigger source",
-    summary:
-      "Once tasks can run in the background, a scheduler should only decide when to trigger work. Execution still belongs to the runtime layer.",
-    sections: [
-      {
-        title: "The scheduler only matches rules",
-        body: "Cron owns time rules like hourly, daily, or weekdays. It should not directly own the runtime execution model.",
-      },
-      {
-        title: "A trigger creates runtime work",
-        body: "When a rule matches, generate the same kind of runtime task that other sources would create.",
-      },
-      {
-        title: "Time and execution stay decoupled",
-        body: "That lets you explain both why work started and how it moved through execution, retries, and completion.",
-      },
-    ],
-    flowLabel: "Scheduled Trigger",
-    flow: ["Cron tick", "Rule match", "Create runtime task", "Hand off to background runtime"],
-    cautionLabel: "Common mistake",
-    caution:
-      "Do not reduce cron to a timer thread. The teaching value is the separation between trigger time and execution runtime.",
-    outcomeLabel: "You should be able to build",
-    outcome:
-      "Separate schedule records from runtime task records and show how one hands off to the other.",
-  },
-  s15: {
+  s09: {
     eyebrow: "Make teammates long-lived roles",
     summary:
       "Agent teams matter when specialists stop being disposable subtasks and become persistent identities with roles, inboxes, and repeatable responsibilities.",
@@ -280,7 +118,7 @@ const COPY: Record<string, OverviewCopy> = {
     outcome:
       "A minimal team roster where persistent workers collaborate through mailboxes.",
   },
-  s16: {
+  s10: {
     eyebrow: "Upgrade coordination from chat to protocol",
     summary:
       "Team protocols matter because important coordination needs a fixed envelope, a request_id, and a durable request record, not just free-form text in a mailbox.",
@@ -307,7 +145,7 @@ const COPY: Record<string, OverviewCopy> = {
     outcome:
       "A small request / response protocol with durable request tracking.",
   },
-  s17: {
+  s11: {
     eyebrow: "Let workers self-claim and self-resume",
     summary:
       "Autonomy is not magic intelligence. It begins when a worker can poll for eligible work, restore the right context, and continue under clear claim rules.",
@@ -334,7 +172,7 @@ const COPY: Record<string, OverviewCopy> = {
     outcome:
       "A worker loop that can discover, claim, and resume work without waiting for a new user turn.",
   },
-  s18: {
+  s12: {
     eyebrow: "Bind tasks to isolated execution lanes",
     summary:
       "Worktree isolation is not about git trivia. It is about giving each task a separate execution lane with explicit enter, run, and closeout lifecycle steps.",
@@ -360,33 +198,6 @@ const COPY: Record<string, OverviewCopy> = {
     outcomeLabel: "You should be able to build",
     outcome:
       "A task-to-worktree binding with explicit keep / remove closeout semantics.",
-  },
-  s19: {
-    eyebrow: "External capability joins the same control plane",
-    summary:
-      "MCP and plugins matter because they extend the agent's capability bus without inventing a second execution universe.",
-    sections: [
-      {
-        title: "Unify capability abstraction first",
-        body: "Native tools, plugins, and MCP server actions should all enter the system through one capability view.",
-      },
-      {
-        title: "External calls still pass policy",
-        body: "Discovery, routing, permission checks, and recovery logic should apply to external capabilities too.",
-      },
-      {
-        title: "Results return on the same bus",
-        body: "Remote outputs should be normalized into the same tool_result or structured event format the loop already understands.",
-      },
-    ],
-    flowLabel: "Capability Bus",
-    flow: ["Discover capability", "Choose route", "Call external system", "Normalize and append"],
-    cautionLabel: "Common mistake",
-    caution:
-      "Do not teach MCP as an isolated addon. The key is how it plugs back into the existing agent control plane.",
-    outcomeLabel: "You should be able to build",
-    outcome:
-      "One capability-routing model that can explain native tools, plugins, and MCP servers together.",
   },
 };
 

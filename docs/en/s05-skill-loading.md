@@ -1,33 +1,42 @@
 # s05: Skills
 
-`s01 > s02 > s03 > s04 > [ s05 ] > s06 > s07 > s08 > s09 > s10 > s11 > s12 > s13 > s14 > s15 > s16 > s17 > s18 > s19`
+`s01 > s02 > s03 > s04 > [ s05 ] s06 | s07 > s08 > s09 > s10 > s11 > s12`
 
-> "Load knowledge when you need it, not upfront".
+> *"Load knowledge when you need it, not upfront"* -- inject via `tool_result`, not the system prompt.
 >
 > **Harness layer**: On-demand knowledge -- domain expertise, loaded when the model asks.
 
 ## Problem
 
-Embedding every domain instruction in the system prompt inflates tokens and wastes context window space. Most tasks only need a small subset of available guidance.
+You want the agent to follow domain-specific workflows: git conventions, testing patterns, code review checklists. Putting everything in the system prompt wastes tokens on unused skills. Many skills are irrelevant to any given task.
 
 ## Solution
 
-Use two layers:
-
-- Layer 1: keep skill names and descriptions in the system prompt.
-- Layer 2: load full `SKILL.md` content only when the model calls `load_skill`.
-
 ```
-System prompt: lightweight catalog
-          +
-Tool call: load_skill("name")
-          +
-Tool result: full skill body
+System prompt (Layer 1 -- always present):
++--------------------------------------+
+| You are a coding agent.              |
+| Skills available:                    |
+|   - git: Git workflow helpers        |  ~100 tokens/skill
+|   - test: Testing best practices     |
++--------------------------------------+
+
+When model calls load_skill("git"):
++--------------------------------------+
+| tool_result (Layer 2 -- on demand):  |
+| <skill name="git">                   |
+|   Full git workflow instructions...  |
+| </skill>                             |
++--------------------------------------+
 ```
+
+Layer 1: skill *names* in system prompt (cheap). Layer 2: full *body* via `tool_result` (on demand).
 
 ## How It Works
 
-1. Index `SKILL.md` files from `skills/`.
+1. Each skill is a directory containing a `SKILL.md` with YAML frontmatter under `skills/`.
+
+2. SkillLoader scans for `SKILL.md` files and caches metadata + body.
 
 ```typescript
 class SkillLoader {
@@ -36,28 +45,37 @@ class SkillLoader {
   async init(): Promise<void> {
     // walk skills/**/SKILL.md and cache metadata + body
   }
+
+  getDescriptions(): string {
+    // short lines for the system prompt
+  }
+
+  getContent(name: string): string {
+    return `<skill name="${name}">\n${body}\n</skill>`;
+  }
 }
 ```
 
-2. Publish only concise descriptions in the system prompt.
+3. Layer 1 goes into the system prompt. Layer 2 is another tool handler.
 
 ```typescript
-const SYSTEM = `You are a coding agent at ${WORKDIR}.\nSkills available:\n${SKILLS.describeAll()}`;
-```
+const SYSTEM = `You are a coding agent at ${WORKDIR}.
+Use load_skill to access specialized knowledge before tackling unfamiliar topics.
 
-3. Serve full skill body through tool result.
+Skills available:
+${SKILL_LOADER.getDescriptions()}`;
 
-```typescript
-TOOL_HANDLERS.load_skill = async (input) => SKILLS.loadContent(input.name);
+// load_skill handler returns SKILL_LOADER.getContent(name)
 ```
 
 ## What Changed From s04
 
-| Component | s04 | s05 |
-|---|---|---|
-| Knowledge model | static prompt only | on-demand skill injection |
-| Tooling | `task` delegation | `load_skill` |
-| Prompt strategy | monolithic | layered (catalog + payload) |
+| Component      | Before (s04)     | After (s05)                |
+|----------------|------------------|----------------------------|
+| Tools          | 5 (base + task) | 5 (base + load_skill)      |
+| System prompt  | Static string    | + skill descriptions       |
+| Knowledge      | None             | `skills/*/SKILL.md` files  |
+| Injection      | None             | Two-layer (system + result)|
 
 ## Try It
 
@@ -65,6 +83,6 @@ TOOL_HANDLERS.load_skill = async (input) => SKILLS.loadContent(input.name);
 npm run s05
 ```
 
-- Ask which skills are available.
-- Request a task that should trigger `load_skill`.
-- Verify that large skill text enters context only when needed.
+1. `What skills are available?`
+2. `Load a skill and follow its instructions for a small task`
+3. `I need a code review -- load the relevant skill first`

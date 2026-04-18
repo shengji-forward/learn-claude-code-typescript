@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Learn Claude Code",
-    "description": "19 chapters, 4 stages, from zero to a high-completion Claude Code-like agent"
+    "description": "12 chapters, 4 stages, from zero to a high-completion Claude Code-like agent"
   },
   "nav": {
     "home": "Home",
@@ -12,12 +12,12 @@
   },
   "home": {
     "hero_title": "Learn Claude Code",
-    "hero_subtitle": "19 chapters across 4 stages, from the minimal loop to a multi-agent platform and external capability bus",
+    "hero_subtitle": "12 chapters across 4 stages, from the minimal loop to a multi-agent platform with isolated worktrees",
     "start": "Start Learning",
     "core_pattern": "The Core Pattern",
-    "core_pattern_desc": "Every AI coding agent grows from the same loop: call the model, execute tools, append results. Permissions, memory, tasks, teams, and plugins all extend that same loop rather than replacing it.",
+    "core_pattern_desc": "Every AI coding agent grows from the same loop: call the model, execute tools, append results. Planning, tasks, and teams all extend that same loop rather than replacing it.",
     "learning_path": "Learning Path",
-    "learning_path_desc": "19 progressive chapters grouped into core loop, system hardening, task runtime, and multi-agent platform stages",
+    "learning_path_desc": "12 progressive chapters grouped into the loop, planning and knowledge, persistence, and multi-agent teams",
     "layers_title": "Architecture Stages",
     "layers_desc": "The goal is not to dump details, but to teach the system in the order a developer can actually absorb and rebuild it.",
     "loc": "LOC",
@@ -57,18 +57,18 @@
   },
   "timeline": {
     "title": "Learning Path",
-    "subtitle": "s01 to s19: build the agent system progressively across 4 stages",
+    "subtitle": "s01 to s12: build the agent system progressively across 4 stages",
     "layer_legend": "Stage Legend",
     "loc_growth": "LOC Growth",
     "learn_more": "Learn More"
   },
   "layers": {
     "title": "Architecture Stages",
-    "subtitle": "Start from the smallest working loop, then add control, durability, background execution, multi-agent coordination, and external capability routing.",
-    "core": "Core Loop: build the smallest useful single-agent system first, including tools, planning, delegation, skills, and context compaction.",
-    "hardening": "System Hardening: move from 'it runs' to 'it runs safely and predictably' with permissions, hooks, memory, prompt assembly, and error recovery.",
-    "runtime": "Task Runtime: turn work from session-local planning into durable, background, and scheduled execution.",
-    "platform": "Multi-Agent Platform: add persistent teammates, protocols, autonomy, isolated execution lanes, and MCP / plugin capability routing."
+    "subtitle": "Start from the smallest working loop, then add planning and knowledge, durable persistence, and multi-agent coordination.",
+    "loop": "The Loop: build the smallest useful single-agent system, tool dispatch on top of the while-stop_reason pattern.",
+    "planning": "Planning & Knowledge: move from 'it runs' to 'it stays on track' with todos, subagents, on-demand skills, and context compaction.",
+    "persistence": "Persistence: turn work from session-local planning into durable task graphs and background execution.",
+    "teams": "Teams: add persistent teammates, shared protocols, autonomy, and isolated worktree execution lanes."
   },
   "compare": {
     "title": "Learning Path Compare",
@@ -101,25 +101,18 @@
     "s04": "Subagent",
     "s05": "Skills",
     "s06": "Context Compact",
-    "s07": "Permission System",
-    "s08": "Hook System",
-    "s09": "Memory System",
-    "s10": "System Prompt",
-    "s11": "Error Recovery",
-    "s12": "Task System",
-    "s13": "Background Tasks",
-    "s14": "Cron Scheduler",
-    "s15": "Agent Teams",
-    "s16": "Team Protocols",
-    "s17": "Autonomous Agents",
-    "s18": "Worktree Isolation",
-    "s19": "MCP & Plugin"
+    "s07": "Task System",
+    "s08": "Background Tasks",
+    "s09": "Agent Teams",
+    "s10": "Team Protocols",
+    "s11": "Autonomous Agents",
+    "s12": "Worktree + Task Isolation"
   },
   "layer_labels": {
-    "core": "Core Loop",
-    "hardening": "System Hardening",
-    "runtime": "Task Runtime",
-    "platform": "Multi-Agent Platform"
+    "loop": "The Loop",
+    "planning": "Planning & Knowledge",
+    "persistence": "Persistence",
+    "teams": "Teams"
   },
   "viz": {
     "s01": "The Agent While-Loop",
@@ -128,18 +121,11 @@
     "s04": "Subagent Context Isolation",
     "s05": "On-Demand Skill Loading",
     "s06": "Three-Layer Context Compaction",
-    "s07": "Permission Gate",
-    "s08": "Lifecycle Hook Surface",
-    "s09": "Long-Term vs Short-Term Memory",
-    "s10": "Prompt Assembly Pipeline",
-    "s11": "Recovery Branch State Machine",
-    "s12": "Task Dependency Graph",
-    "s13": "Background Task Lanes",
-    "s14": "Cron Trigger Pipeline",
-    "s15": "Agent Team Mailboxes",
-    "s16": "Protocol Sequence Diagram",
-    "s17": "Autonomous Agent Cycle",
-    "s18": "Worktree Task Isolation",
-    "s19": "External Capability Bus"
+    "s07": "Task Dependency Graph",
+    "s08": "Background Task Lanes",
+    "s09": "Agent Team Mailboxes",
+    "s10": "Protocol Sequence Diagram",
+    "s11": "Autonomous Agent Cycle",
+    "s12": "Worktree Task Isolation"
   }
 }

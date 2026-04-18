@@ -1,71 +1,78 @@
 #!/usr/bin/env ts-node
-// Harness: self-organization -- idle polling and automatic task claiming.
-// @ts-nocheck
+// Harness: multi-agent orchestration -- teammates with async mailboxes.
 /**
- * s17_autonomous_agents.ts - Autonomous Agents
+ * s09_agent_teams.ts - Agent Teams
  *
- * Idle cycle with task board polling, auto-claiming unclaimed tasks, and
- * identity re-injection after context compression. Builds on s16's protocols.
+ * Persistent named agents with file-based JSONL inboxes. Each teammate runs
+ * its own agent loop in a separate worker thread. Communication via append-only inboxes.
  *
- *     Teammate lifecycle:
- *     +-------+
- *     | spawn |
- *     +---+---+
- *         |
- *         v
- *     +-------+  tool_use    +-------+
- *     | WORK  | <----------- |  LLM  |
- *     +---+---+              +-------+
- *         |
- *         | stop_reason != tool_use
- *         v
- *     +--------+
- *     | IDLE   | poll every 5s for up to 60s
- *     +---+----+
- *         |
- *         +---> check inbox -> message? -> resume WORK
- *         |
- *         +---> scan .tasks/ -> unclaimed? -> claim -> resume WORK
- *         |
- *         +---> timeout (60s) -> shutdown
+ *     Subagent (s04):  spawn -> execute -> return summary -> destroyed
+ *     Teammate (s09):  spawn -> work -> idle -> work -> ... -> shutdown
  *
- *     Identity re-injection after compression:
- *     messages = [identity_block, ...remaining...]
- *     "You are 'coder', role: backend, team: my-team"
+ *     .team/config.json                   .team/inbox/
+ *     +----------------------------+      +------------------+
+ *     | {"team_name": "default",   |      | alice.jsonl      |
+ *     |  "members": [              |      | bob.jsonl        |
+ *     |    {"name":"alice",        |      | lead.jsonl       |
+ *     |     "role":"coder",        |      +------------------+
+ *     |     "status":"idle"}       |
+ *     |  ]}                        |      send_message("alice", "fix bug"):
+ *     +----------------------------+        open("alice.jsonl", "a").write(msg)
  *
- * Key insight: "The agent finds work itself."
+ *                                         read_inbox("alice"):
+ *     spawn_teammate("alice","coder",...)   msgs = [json.loads(l) for l in ...]
+ *          |                                open("alice.jsonl", "w").close()
+ *          v                                return msgs  # drain
+ *     Worker: alice          Worker: bob
+ *     +------------------+      +------------------+
+ *     | agent_loop       |      | agent_loop       |
+ *     | status: working  |      | status: idle     |
+ *     | ... runs tools   |      | ... waits ...    |
+ *     | status -> idle   |      |                  |
+ *     +------------------+      +------------------+
+ *
+ *     5 message types (all declared, not all handled here):
+ *     +-------------------------+-----------------------------------+
+ *     | message                 | Normal text message               |
+ *     | broadcast               | Sent to all teammates             |
+ *     | shutdown_request        | Request graceful shutdown (s10)   |
+ *     | shutdown_response       | Approve/reject shutdown (s10)     |
+ *     | plan_approval_response  | Approve/reject plan (s10)         |
+ *     +-------------------------+-----------------------------------+
+ *
+ * Key insight: "Teammates that can talk to each other."
  *
  * === TYPESCRIPT VS PYTHON ===
  *
- * 1. IDLE POLLING:
- *    - Python: time.sleep(POLL_INTERVAL) in loop
- *    - TypeScript: await sleep(POLL_INTERVAL * 1000) with async/await
- *    - TypeScript: Sleep returns Promise for non-blocking delay
+ * 1. THREADING MODEL:
+ *    - Python: threading.Thread with shared memory
+ *    - TypeScript: Worker Threads with message passing
+ *    - TypeScript: No shared memory, communicate via messages
  *
- * 2. TASK SCANNING:
- *    - Python: glob("task_*.json") with pathlib
- *    - TypeScript: fs.readdir() with filter function
- *    - TypeScript: Parse JSON and filter with async operations
+ * 2. CONFIG PERSISTENCE:
+ *    - Python: Dict loaded from JSON file
+ *    - TypeScript: Interface with type safety
+ *    - Both: Save to config.json after changes
  *
- * 3. FILE LOCKING:
- *    - Python: threading.Lock() for claim_task
- *    - TypeScript: No locks needed (single-threaded event loop)
- *    - TypeScript: Atomic file operations sufficient
+ * 3. INBOX MANAGEMENT:
+ *    - Python: Direct file I/O with Path objects
+ *    - TypeScript: fs.promises with async/await
+ *    - Both: JSONL format (one JSON per line)
  *
- * 4. WORKER LIFECYCLE:
- *    - Python: Daemon threads with while True loop
- *    - TypeScript: Worker with async/await pattern
- *    - TypeScript: Explicit worker termination on shutdown
+ * 4. TEAMMATE STATUS:
+ *    - Python: String status in config dict
+ *    - TypeScript: Enum for compile-time safety
+ *    - Both: Track status (idle, working, shutdown)
  *
- * 5. IDENTITY RE-INJECTION:
- *    - Python: Insert identity block at start of messages list
- *    - TypeScript: Array.unshift() to prepend identity
- *    - TypeScript: Type-safe message array manipulation
+ * 5. WORKER LIFECYCLE:
+ *    - Python: Daemon threads auto-exit
+ *    - TypeScript: Workers must be explicitly terminated
+ *    - TypeScript: Terminate all workers on shutdown
  *
- * 6. TASK CLAIMING:
- *    - Python: Read file, update dict, write back with lock
- *    - TypeScript: Atomic read-modify-write with async/await
- *    - TypeScript: No race conditions in single-threaded event loop
+ * 6. MESSAGE PASSING:
+ *    - Python: Shared memory with threading.Lock()
+ *    - TypeScript: postMessage/on('message') events
+ *    - TypeScript: Structured clone for data transfer
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -76,7 +83,6 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import * as readline from "readline";
 import { Worker } from "worker_threads";
-import { randomUUID } from "crypto";
 
 // Load environment variables
 config();
@@ -94,12 +100,8 @@ const MODEL = process.env.MODEL_ID ?? (() => {
 })();
 const TEAM_DIR = path.join(WORKDIR, ".team");
 const INBOX_DIR = path.join(TEAM_DIR, "inbox");
-const TASKS_DIR = path.join(WORKDIR, ".tasks");
 
-const POLL_INTERVAL = 5;  // seconds
-const IDLE_TIMEOUT = 60;  // seconds
-
-const SYSTEM = `You are a team lead at ${WORKDIR}. Teammates are autonomous -- they find work themselves.`;
+const SYSTEM = `You are a team lead at ${WORKDIR}. Spawn teammates and communicate via inboxes.`;
 
 const execAsync = promisify(exec);
 
@@ -130,56 +132,9 @@ enum TeammateStatus {
 }
 
 /**
- * Request status enum for protocol tracking
- * TypeScript: enum for compile-time safety
- * Python: String literals
- */
-enum RequestStatus {
-    PENDING = "pending",
-    APPROVED = "approved",
-    REJECTED = "rejected",
-}
-
-/**
- * Task status enum
- * TypeScript: enum for compile-time safety
- * Python: String literals
- */
-enum TaskStatus {
-    PENDING = "pending",
-    IN_PROGRESS = "in_progress",
-    COMPLETED = "completed",
-}
-
-/**
- * Task interface
- * TypeScript: Interface defining task structure
- * Python: Dict with keys
- */
-interface Task {
-    id: number;
-    subject: string;
-    description: string;
-    status: TaskStatus;
-    owner?: string;
-    blockedBy?: string[];
-}
-
-/**
- * Protocol request interface
- */
-interface ProtocolRequest {
-    requestId: string;
-    type: "shutdown" | "plan_approval";
-    target?: string;
-    from?: string;
-    plan?: string;
-    status: RequestStatus;
-    timestamp: number;
-}
-
-/**
  * Teammate member interface
+ * TypeScript: Interface with required and optional fields
+ * Python: Dict with keys
  */
 interface TeammateMember {
     name: string;
@@ -189,6 +144,8 @@ interface TeammateMember {
 
 /**
  * Team config interface
+ * TypeScript: Interface for type safety
+ * Python: Dict with keys
  */
 interface TeamConfig {
     team_name: string;
@@ -197,6 +154,7 @@ interface TeamConfig {
 
 /**
  * Message interface
+ * TypeScript: Interface defining message structure
  */
 interface TeamMessage {
     type: MessageType;
@@ -204,15 +162,6 @@ interface TeamMessage {
     content: string;
     timestamp: number;
     [key: string]: any;
-}
-
-/**
- * Sleep utility for async delays
- * TypeScript: Promise-based delay
- * Python: time.sleep()
- */
-function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -316,198 +265,7 @@ class MessageBus {
 const BUS = new MessageBus(INBOX_DIR);
 
 /**
- * ProtocolManager: Track and manage protocol requests
- * TypeScript: Class with encapsulated state
- * Python: Global dicts with threading.Lock()
- */
-class ProtocolManager {
-    private shutdownRequests: Map<string, ProtocolRequest> = new Map();
-    private planRequests: Map<string, ProtocolRequest> = new Map();
-
-    createShutdownRequest(target: string): string {
-        const requestId = randomUUID().substring(0, 8);
-        this.shutdownRequests.set(requestId, {
-            requestId,
-            type: "shutdown",
-            target,
-            status: RequestStatus.PENDING,
-            timestamp: Date.now() / 1000,
-        });
-        return requestId;
-    }
-
-    createPlanRequest(from: string, plan: string): string {
-        const requestId = randomUUID().substring(0, 8);
-        this.planRequests.set(requestId, {
-            requestId,
-            type: "plan_approval",
-            from,
-            plan,
-            status: RequestStatus.PENDING,
-            timestamp: Date.now() / 1000,
-        });
-        return requestId;
-    }
-
-    updateShutdownStatus(requestId: string, approved: boolean): void {
-        const request = this.shutdownRequests.get(requestId);
-        if (request) {
-            request.status = approved ? RequestStatus.APPROVED : RequestStatus.REJECTED;
-        }
-    }
-
-    updatePlanStatus(requestId: string, approved: boolean): void {
-        const request = this.planRequests.get(requestId);
-        if (request) {
-            request.status = approved ? RequestStatus.APPROVED : RequestStatus.REJECTED;
-        }
-    }
-
-    getShutdownRequest(requestId: string): ProtocolRequest | undefined {
-        return this.shutdownRequests.get(requestId);
-    }
-
-    getPlanRequest(requestId: string): ProtocolRequest | undefined {
-        return this.planRequests.get(requestId);
-    }
-}
-
-// Initialize protocol manager
-const PROTOCOLS = new ProtocolManager();
-
-/**
- * TaskManager: Scan and claim tasks from .tasks/ directory
- * TypeScript: Class with async file operations
- * Python: Module-level functions with sync file operations
- */
-class TaskManager {
-    private tasksDir: string;
-
-    constructor(tasksDir: string) {
-        this.tasksDir = tasksDir;
-    }
-
-    /**
-     * Initialize tasks directory
-     * TypeScript: Async method
-     * Python: TASKS_DIR.mkdir(exist_ok=True)
-     */
-    async init(): Promise<void> {
-        await fs.mkdir(this.tasksDir, { recursive: true });
-    }
-
-    /**
-     * Scan for unclaimed tasks
-     * TypeScript: Async method with file filtering
-     * Python: glob with list comprehension
-     */
-    async scanUnclaimedTasks(): Promise<Task[]> {
-        await fs.mkdir(this.tasksDir, { recursive: true });
-
-        try {
-            const files = await fs.readdir(this.tasksDir);
-            const taskFiles = files.filter(f => f.startsWith("task_") && f.endsWith(".json"));
-            const unclaimed: Task[] = [];
-
-            for (const file of taskFiles) {
-                const filePath = path.join(this.tasksDir, file);
-                const content = await fs.readFile(filePath, "utf-8");
-                const task: Task = JSON.parse(content);
-
-                if (
-                    task.status === TaskStatus.PENDING &&
-                    !task.owner &&
-                    (!task.blockedBy || task.blockedBy.length === 0)
-                ) {
-                    unclaimed.push(task);
-                }
-            }
-
-            // Sort by task ID
-            return unclaimed.sort((a, b) => a.id - b.id);
-        } catch (error) {
-            return [];
-        }
-    }
-
-    /**
-     * Claim a task by ID
-     * TypeScript: Async method with atomic file operation
-     * Python: Function with threading.Lock()
-     */
-    async claimTask(taskId: number, owner: string): Promise<string> {
-        const taskPath = path.join(this.tasksDir, `task_${taskId}.json`);
-
-        try {
-            const content = await fs.readFile(taskPath, "utf-8");
-            const task: Task = JSON.parse(content);
-
-            if (task.owner) {
-                return `Error: Task ${taskId} has already been claimed by ${task.owner}`;
-            }
-            if (task.status !== TaskStatus.PENDING) {
-                return `Error: Task ${taskId} cannot be claimed because its status is '${task.status}'`;
-            }
-            if (task.blockedBy && task.blockedBy.length > 0) {
-                return `Error: Task ${taskId} is blocked by other task(s) and cannot be claimed yet`;
-            }
-
-            task.owner = owner;
-            task.status = TaskStatus.IN_PROGRESS;
-
-            await fs.writeFile(taskPath, JSON.stringify(task, null, 2), "utf-8");
-
-            return `Claimed task #${taskId} for ${owner}`;
-        } catch (error) {
-            return `Error: Task ${taskId} not found`;
-        }
-    }
-
-    /**
-     * List all tasks with status markers
-     * TypeScript: Async method
-     * Python: Loop with print statements
-     */
-    async listTasks(): Promise<string> {
-        await fs.mkdir(this.tasksDir, { recursive: true });
-
-        try {
-            const files = await fs.readdir(this.tasksDir);
-            const taskFiles = files.filter(f => f.startsWith("task_") && f.endsWith(".json"));
-
-            if (taskFiles.length === 0) {
-                return "No tasks found.";
-            }
-
-            const lines: string[] = [];
-
-            for (const file of taskFiles) {
-                const filePath = path.join(this.tasksDir, file);
-                const content = await fs.readFile(filePath, "utf-8");
-                const task: Task = JSON.parse(content);
-
-                const marker = {
-                    [TaskStatus.PENDING]: "[ ]",
-                    [TaskStatus.IN_PROGRESS]: "[>]",
-                    [TaskStatus.COMPLETED]: "[x]",
-                }[task.status] || "[?]";
-
-                const owner = task.owner ? ` @${task.owner}` : "";
-                lines.push(`  ${marker} #${task.id}: ${task.subject}${owner}`);
-            }
-
-            return lines.join("\n");
-        } catch (error) {
-            return "Error reading tasks.";
-        }
-    }
-}
-
-// Initialize task manager
-const TASKS = new TaskManager(TASKS_DIR);
-
-/**
- * TeammateManager: persistent named agents with autonomous behavior
+ * TeammateManager: persistent named agents with config.json
  * TypeScript: Class with Worker management
  * Python: Class with threading.Thread management
  */
@@ -572,20 +330,7 @@ class TeammateManager {
     }
 
     /**
-     * Set member status
-     * TypeScript: Async method
-     * Python: Synchronous method
-     */
-    private async setStatus(name: string, status: TeammateStatus): Promise<void> {
-        const member = this.findMember(name);
-        if (member) {
-            member.status = status;
-            await this.saveConfig();
-        }
-    }
-
-    /**
-     * Spawn a new autonomous teammate
+     * Spawn a new teammate
      * TypeScript: Creates Worker, returns immediately
      * Python: Creates Thread, returns immediately
      */
@@ -609,54 +354,59 @@ class TeammateManager {
 
         await this.saveConfig();
 
-        // Create worker for autonomous teammate
-        const jsWorkerPath = path.join(__dirname, "autonomous-worker.js");
-        const tsWorkerPath = path.join(__dirname, "autonomous-worker.ts");
+        // Create worker for teammate
+        const jsWorkerPath = path.join(__dirname, "teammate-worker.js");
+        const tsWorkerPath = path.join(__dirname, "teammate-worker.ts");
         const workerPath = existsSync(jsWorkerPath) ? jsWorkerPath : tsWorkerPath;
         const worker = new Worker(workerPath, {
             workerData: {
                 teammateName: name,
                 role,
                 prompt,
-                teamName: this.config.team_name,
                 workdir: WORKDIR,
                 inboxDir: INBOX_DIR,
-                tasksDir: TASKS_DIR,
                 modelId: MODEL,
                 apiBase: process.env.ANTHROPIC_BASE_URL,
-                pollInterval: POLL_INTERVAL,
-                idleTimeout: IDLE_TIMEOUT,
+                sessionMode: "s09",
+                protocolMode: "base",
             },
             ...(workerPath.endsWith(".ts")
                 ? { execArgv: ["--loader", "ts-node/esm"] }
                 : {}),
         });
 
-        // Handle worker messages
-        worker.on("message", async (msg: any) => {
-            if (msg.type === "status_change") {
-                await this.setStatus(name, msg.status as TeammateStatus);
-                if (msg.status === TeammateStatus.SHUTDOWN) {
-                    this.workers.delete(name);
+        // Handle worker completion
+        worker.on("message", (msg: any) => {
+            if (msg.type === "teammate_complete") {
+                const m = this.findMember(name);
+                if (m) {
+                    m.status = msg.final_status === "shutdown"
+                        ? TeammateStatus.SHUTDOWN
+                        : TeammateStatus.IDLE;
+                    this.saveConfig();
                 }
+                this.workers.delete(name);
             } else if (msg.type === "tool_use") {
                 console.log(`  [${msg.teammate}] ${msg.tool}: ${msg.output}`);
-            } else if (msg.type === "task_claimed") {
-                console.log(`  [${name}] Auto-claimed task #${msg.taskId}`);
             }
         });
 
-        worker.on("error", async (error) => {
+        worker.on("error", (error) => {
             console.error(`  [${name}] Worker error: ${error.message}`);
-            await this.setStatus(name, TeammateStatus.IDLE);
+            const m = this.findMember(name);
+            if (m) {
+                m.status = TeammateStatus.IDLE;
+                this.saveConfig();
+            }
             this.workers.delete(name);
         });
 
-        worker.on("exit", async (code) => {
+        worker.on("exit", (code) => {
             if (code !== 0) {
                 const m = this.findMember(name);
                 if (m && m.status === TeammateStatus.WORKING) {
-                    await this.setStatus(name, TeammateStatus.IDLE);
+                    m.status = TeammateStatus.IDLE;
+                    this.saveConfig();
                 }
             }
             this.workers.delete(name);
@@ -664,7 +414,7 @@ class TeammateManager {
 
         this.workers.set(name, worker);
 
-        return `Spawned autonomous '${name}' (role: ${role})`;
+        return `Spawned '${name}' (role: ${role})`;
     }
 
     /**
@@ -803,72 +553,11 @@ async function runEdit(filePath: string, oldText: string, newText: string): Prom
     }
 }
 
-/**
- * Handle shutdown request (lead side)
- */
-async function handleShutdownRequest(teammate: string): Promise<string> {
-    const requestId = PROTOCOLS.createShutdownRequest(teammate);
-    await BUS.send(
-        "lead",
-        teammate,
-        "Please shut down gracefully.",
-        "shutdown_request",
-        { request_id: requestId }
-    );
-    return `Shutdown request ${requestId} sent to '${teammate}'`;
-}
-
-/**
- * Handle plan review (lead side)
- */
-async function handlePlanReview(
-    requestId: string,
-    approve: boolean,
-    feedback: string = ""
-): Promise<string> {
-    const request = PROTOCOLS.getPlanRequest(requestId);
-    if (!request) {
-        return `Error: Unknown plan request_id '${requestId}'`;
-    }
-
-    PROTOCOLS.updatePlanStatus(requestId, approve);
-    await BUS.send(
-        "lead",
-        request.from || "",
-        feedback,
-        "plan_approval_response",
-        {
-            request_id: requestId,
-            approve: approve,
-            feedback: feedback
-        }
-    );
-
-    return `Plan ${approve ? "approved" : "rejected"} for '${request.from}'`;
-}
-
-/**
- * Check shutdown status (lead side)
- */
-function checkShutdownStatus(requestId: string): string {
-    const request = PROTOCOLS.getShutdownRequest(requestId);
-    if (!request) {
-        return JSON.stringify({ error: "not found" });
-    }
-    return JSON.stringify({
-        request_id: request.requestId,
-        target: request.target,
-        status: request.status,
-    });
-}
-
 // Type for tool handler functions
 type ToolHandler = (input: any) => Promise<string> | string;
 
 /**
  * Tool handlers map
- * TypeScript: Type-safe object with handler functions
- * Python: Dict with lambda functions
  */
 const TOOL_HANDLERS: Record<string, ToolHandler> = {
     bash: async (input) => await runBash(input.command),
@@ -883,30 +572,16 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
         input.content,
         input.msg_type || "message"
     ),
-    read_inbox: async () => {
-        const inbox = await BUS.readInbox("lead");
-        return JSON.stringify(inbox, null, 2);
-    },
+    read_inbox: async () => JSON.stringify(await BUS.readInbox("lead"), null, 2),
     broadcast: async (input) => await BUS.broadcast(
         "lead",
         input.content,
         TEAMMATES.memberNames()
     ),
-    shutdown_request: async (input) => await handleShutdownRequest(input.teammate),
-    shutdown_response: (input) => checkShutdownStatus(input.request_id),
-    plan_approval: async (input) => await handlePlanReview(
-        input.request_id,
-        input.approve,
-        input.feedback || ""
-    ),
-    idle: () => "Lead does not idle.",
-    claim_task: async (input) => await TASKS.claimTask(input.task_id, "lead"),
 };
 
 /**
  * Tool definitions for the API
- * TypeScript: Array of tool definitions
- * Python: List of tool definition dicts
  */
 const TOOLS = [
     {
@@ -959,7 +634,7 @@ const TOOLS = [
     },
     {
         name: "spawn_teammate",
-        description: "Spawn an autonomous teammate.",
+        description: "Spawn a new teammate agent.",
         input_schema: {
             type: "object" as const,
             properties: {
@@ -972,7 +647,7 @@ const TOOLS = [
     },
     {
         name: "list_teammates",
-        description: "List all teammates.",
+        description: "List all teammates and their status.",
         input_schema: {
             type: "object" as const,
             properties: {}
@@ -1013,70 +688,13 @@ const TOOLS = [
             required: ["content"] as const
         }
     },
-    {
-        name: "shutdown_request",
-        description: "Request a teammate to shut down.",
-        input_schema: {
-            type: "object" as const,
-            properties: {
-                teammate: { type: "string" }
-            },
-            required: ["teammate"] as const
-        }
-    },
-    {
-        name: "shutdown_response",
-        description: "Check shutdown request status.",
-        input_schema: {
-            type: "object" as const,
-            properties: {
-                request_id: { type: "string" }
-            },
-            required: ["request_id"] as const
-        }
-    },
-    {
-        name: "plan_approval",
-        description: "Approve or reject a teammate's plan.",
-        input_schema: {
-            type: "object" as const,
-            properties: {
-                request_id: { type: "string" },
-                approve: { type: "boolean" },
-                feedback: { type: "string" }
-            },
-            required: ["request_id", "approve"] as const
-        }
-    },
-    {
-        name: "idle",
-        description: "Enter idle state (for lead -- rarely used).",
-        input_schema: {
-            type: "object" as const,
-            properties: {}
-        }
-    },
-    {
-        name: "claim_task",
-        description: "Claim a task from the board by ID.",
-        input_schema: {
-            type: "object" as const,
-            properties: {
-                task_id: { type: "integer" }
-            },
-            required: ["task_id"] as const
-        }
-    },
 ];
 
 /**
- * Agent loop with inbox checking
- * TypeScript: Async function with inbox processing
- * Python: Synchronous function with inbox processing
+ * Agent loop
  */
 async function agentLoop(messages: any[]): Promise<void> {
     while (true) {
-        // Check for inbox messages
         const inbox = await BUS.readInbox("lead");
         if (inbox.length > 0) {
             messages.push({
@@ -1143,7 +761,6 @@ async function agentLoop(messages: any[]): Promise<void> {
  */
 async function main(): Promise<void> {
     await TEAMMATES.init();
-    await TASKS.init();
 
     const history: any[] = [];
     const rl = readline.createInterface({
@@ -1157,31 +774,15 @@ async function main(): Promise<void> {
         });
     };
 
-    console.log("\nSession 17: Autonomous Agents");
-    console.log("Idle cycle with task board polling and auto-claiming.\n");
+    console.log("\nSession 9: Agent Teams");
+    console.log("Spawn persistent teammates that communicate via JSONL inboxes.\n");
 
     try {
         while (true) {
-            const query = await question("\x1b[36ms17 >> \x1b[0m");
+            const query = await question("\x1b[36ms09 >> \x1b[0m");
 
             if (query.trim().toLowerCase() === "q" || query.trim() === "exit" || query.trim() === "") {
                 break;
-            }
-
-            if (query.trim() === "/team") {
-                console.log(await TEAMMATES.listAll());
-                continue;
-            }
-
-            if (query.trim() === "/inbox") {
-                const inbox = await BUS.readInbox("lead");
-                console.log(JSON.stringify(inbox, null, 2));
-                continue;
-            }
-
-            if (query.trim() === "/tasks") {
-                console.log(await TASKS.listTasks());
-                continue;
             }
 
             history.push({

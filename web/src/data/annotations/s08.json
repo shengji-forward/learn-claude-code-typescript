@@ -2,22 +2,22 @@
   "version": "s08",
   "decisions": [
     {
-      "id": "lifecycle-event-envelope",
-      "title": "Normalized Lifecycle Event Envelope",
-      "description": "Hooks receive normalized event objects with a stable shape: event name, tool name, input, result, error, and duration. This means every hook can parse and react to events using the same interface, regardless of which tool triggered the event. The envelope makes hooks composable and testable.",
-      "alternatives": "Passing raw tool call data to hooks is simpler but couples hooks to tool implementation details. A string-based event system loses structure and makes parsing fragile."
+      "id": "runtime-task-record",
+      "title": "RuntimeTaskRecord Separate from Task Goal",
+      "description": "The durable task goal stays on the board while each live execution gets its own RuntimeTaskRecord with id, status, started_at, result_preview, and output_file. The record describes one execution attempt, not the task goal itself. This separation means a task can be retried without losing the original goal, and the runtime can track execution independently from planning.",
+      "alternatives": "Reusing the task record for execution status conflates goal and attempt, making retries ambiguous. A single shared execution slot per task prevents concurrent attempts but limits throughput."
     },
     {
-      "id": "observe-block-annotate",
-      "title": "Hooks Observe, Block, or Annotate -- Never Replace",
-      "description": "Hooks are constrained to three actions: observe (read-only side effects like logging), block (prevent execution and return a denial), or annotate (add metadata to the result). Hooks cannot replace the tool's return value or modify the conversation state directly. This keeps the main loop's state machine clean and prevents hooks from secretly becoming a second control plane.",
-      "alternatives": "Allowing hooks to modify results freely creates a tangled mess where the tool says one thing but the hook changes it. Allowing hooks to inject messages into the conversation breaks the loop's message-ordering guarantees."
+      "id": "preview-and-full-output-split",
+      "title": "Preview in Notification, Full Output on Disk",
+      "description": "Background task results split into two layers: a short preview sent through the notification queue, and the full output written to a file. The main loop learns what happened from the preview without flooding its context. If the model needs detail, it reads the file. This keeps context manageable even when background tasks produce large outputs.",
+      "alternatives": "Sending the full output through the notification queue would flood the context window. Writing only to disk means the main loop has to proactively check files for results. The preview+file split gives immediate awareness with optional detail."
     },
     {
-      "id": "hook-registry-pattern",
-      "title": "Named Registration Points, Not Arbitrary Injection",
-      "description": "Hooks register at named lifecycle points (pre_tool, post_tool, on_error, on_start, on_end) rather than injecting at arbitrary positions in the loop. Named points keep the hook surface stable and predictable. New hooks can be added without understanding the entire loop internals -- just pick a named point and register.",
-      "alternatives": "Middleware-style wrapping (each hook wraps the next) is powerful but creates invisible chains that are hard to debug. Event bus patterns (pub/sub on arbitrary topics) are flexible but lose the predictable ordering that named registration points provide."
+      "id": "notification-rejoins-loop",
+      "title": "Notifications Rejoin the Main Loop, Not a Second Loop",
+      "description": "Background threads do not mutate model state directly. They write runtime records and notifications, then the next turn injects them into context. The main loop remains the single state machine. Background execution only adds parallelism to waiting, not parallelism to reasoning.",
+      "alternatives": "Allowing background threads to modify the conversation directly creates race conditions. A second parallel loop would be a second agent, not a background task. The notification bridge keeps the architecture simple."
     }
   ]
 }

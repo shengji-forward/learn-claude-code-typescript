@@ -1,0 +1,23 @@
+{
+  "version": "s11",
+  "decisions": [
+    {
+      "id": "error-classification-first",
+      "title": "Classify Errors Before Choosing Recovery Branch",
+      "description": "When a tool call fails, the recovery system first classifies the error into categories: permission denial, tool crash, missing dependency, timeout, and write conflict. Each category maps to a different recovery strategy. Permission denial should inform the model and ask for alternative approaches. Tool crashes may warrant a retry. Missing dependencies should trigger installation. Timeouts may need a longer timeout or a different approach. Classification prevents the common failure mode of blindly retrying every error.",
+      "alternatives": "A single retry-with-backoff strategy for all errors is simpler but wastes turns on unrecoverable errors. Letting the model decide recovery without structured classification leads to inconsistent behavior."
+    },
+    {
+      "id": "continuation-reason",
+      "title": "Explicit Continuation Reasons After Recovery",
+      "description": "After any recovery action, the system writes an explicit continuation reason into the conversation: 'retrying because the command timed out', 'switching to fallback approach because the primary tool crashed', or 'asking user because permission was denied'. This makes the recovery state visible to the model and prevents silent infinite loops where the agent keeps retrying without understanding why.",
+      "alternatives": "Silent retry (just try again without explanation) is simpler but makes debugging impossible and risks infinite loops. Exception-based recovery breaks the flow and mixes error handling with control flow."
+    },
+    {
+      "id": "recovery-hard-limits",
+      "title": "Hard Limits on Retry Count and Recovery Depth",
+      "description": "Each recovery branch has a maximum retry count and the overall recovery depth is bounded. If the agent retried a tool 3 times and it still fails, it stops and reports the failure. If recovery itself triggers another error (recovery-of-recovery), the depth counter prevents infinite nesting. These hard limits transform 'the agent is stuck in a loop' from a runtime observation into a detectable, bounded condition.",
+      "alternatives": "No limits allow the agent to waste turns indefinitely. Soft limits (hints like 'you have retried several times') rely on the model noticing and acting on hints, which is unreliable."
+    }
+  ]
+}

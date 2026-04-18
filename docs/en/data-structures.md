@@ -7,9 +7,9 @@ The easiest way to get lost in an agent system is not feature count -- it is los
 ## Recommended Reading Together
 
 - [`glossary.md`](./glossary.md) for term meanings
-- [`entity-map.md`](./entity-map.md) for layer boundaries
-- [`s13a-runtime-task-model.md`](./s13a-runtime-task-model.md) for task vs runtime-slot separation
-- [`s19a-mcp-capability-layers.md`](./s19a-mcp-capability-layers.md) for MCP beyond tools
+- [`entity-map.md`](../extras/en/entity-map.md) for layer boundaries
+- [`s13a-runtime-task-model.md`](../extras/en/s13a-runtime-task-model.md) for task vs runtime-slot separation
+- [`s19a-mcp-capability-layers.md`](../extras/en/s19a-mcp-capability-layers.md) for MCP beyond tools
 
 ## Two Principles To Keep In Mind
 

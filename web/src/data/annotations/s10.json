@@ -2,22 +2,22 @@
   "version": "s10",
   "decisions": [
     {
-      "id": "stable-policy-section",
-      "title": "Separate Stable Policy from Runtime Fragments",
-      "description": "The system prompt is split into two categories: stable policy (role definition, safety rules, non-negotiable constraints) and runtime fragments (working directory, available tools, memory context, task state). Stable policy rarely changes and benefits from prompt caching. Runtime fragments change frequently. Keeping them separate means the model always sees the same foundation, and only the dynamic parts vary.",
-      "alternatives": "One monolithic prompt string is simpler but grows uncontrollably and defeats prompt caching. Generating the entire prompt from templates every time works but loses the stability that helps the model anchor its behavior."
+      "id": "protocol-envelope",
+      "title": "Fixed Protocol Message Envelope",
+      "description": "Protocol messages carry a fixed envelope: type, from, to, request_id, and payload. This structure travels together so one workflow can always be parsed and handled the same way. The request_id enables correlation: when a response comes back, it references the same request_id, so the sender knows which request was answered.",
+      "alternatives": "Free-form messages in a mailbox are simpler but make correlation unreliable. A type system with inheritance is more flexible but loses the predictability of a fixed envelope."
     },
     {
-      "id": "explicit-assembly-order",
-      "title": "Prompt Sections Assembled in a Defined Order",
-      "description": "The prompt builder assembles sections in a fixed order: stable policy, runtime state, tool definitions, memory injection, task state, and recovery hints. This ordering matters because the model processes earlier sections first and may weight them more heavily. Safety rules before tool definitions means the model sees constraints before capabilities.",
-      "alternatives": "Alphabetical or insertion-order assembly is simpler but produces unpredictable behavior. Allowing each section to specify its own priority leads to conflicts. A fixed pipeline is explicit and debuggable."
+      "id": "durable-request-record",
+      "title": "Request Records Persisted to Disk",
+      "description": "Protocol requests create durable RequestRecord files with state transitions: pending, approved, rejected, expired. These records survive context compression and process restarts. Approval, shutdown, or handoff should be inspectable after the fact. The record is the source of truth for protocol state, not any agent's memory.",
+      "alternatives": "In-memory request tracking is simpler but loses state on crash. Tracking requests only in messages[] means they are lost during context compression. Durable records provide the persistence that multi-turn coordination requires."
     },
     {
-      "id": "prompt-as-control-plane",
-      "title": "The Prompt Pipeline IS the Control Plane",
-      "description": "What the model sees determines how it behaves. The prompt assembly pipeline controls which information is available, in what order, and with what emphasis. This makes the prompt builder the agent's true control plane -- not the tool dispatch, not the permission system, but the input construction pipeline. Understanding this framing is crucial: changing the prompt changes the agent's behavior more directly than changing any other component.",
-      "alternatives": "Treating the system prompt as a static configuration file misses the opportunity to dynamically control behavior. Treating it as a free-form string template loses the structure that makes predictable assembly possible."
+      "id": "state-transitions-over-text",
+      "title": "State Machine Transitions Are the Teaching Spine",
+      "description": "The pending -> approved -> executed -> completed lifecycle is the real content of the protocols chapter. The human-readable message text is only the explanation layer around that state machine. Teaching protocols as 'more formal chat' misses the point: the important part is the request correlation and state transitions that make coordination reliable.",
+      "alternatives": "Teaching protocols as message formatting exercises loses the state machine insight. Treating them as API contracts is correct but overly abstract for the teaching context."
     }
   ]
 }

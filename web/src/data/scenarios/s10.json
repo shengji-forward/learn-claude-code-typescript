@@ -1,45 +1,38 @@
 {
   "version": "s10",
-  "title": "System Prompt",
-  "description": "Agent assembles its input from a pipeline of stable policy and runtime state",
+  "title": "Team Protocols",
+  "description": "Request-response protocols with durable request records",
   "steps": [
     {
       "type": "user_message",
-      "content": "Add rate limiting to the API",
-      "annotation": "New task -- the prompt assembly pipeline determines what the model sees"
+      "content": "Work is done. Shut down the team gracefully.",
+      "annotation": "Can't just kill threads -- need coordinated shutdown via protocol"
+    },
+    {
+      "type": "tool_call",
+      "content": "shutdown_request(\n  teammate: \"backend-dev\",\n  request_id: \"req_abc123\"\n)",
+      "toolName": "shutdown_teammate",
+      "annotation": "request_id correlates the request with the response"
     },
     {
       "type": "system_event",
-      "content": "[Prompt Assembly]\n  1. Stable policy: 'You are a coding agent. Safety rules: ...'\n  2. Runtime state: cwd=/project, platform=darwin\n  3. Tool definitions: bash, read, write, edit, task_manager\n  4. Memory: User prefers TypeScript, project uses Express\n  5. Task state: #5 (in_progress) Add rate limiting\n  6. Recovery hint: No pending errors",
-      "annotation": "Prompt sections assembled in a defined order -- policy first, runtime state second"
+      "content": "[RequestRecord] req_abc123 created\n  State: pending\n  Envelope: { type: \"shutdown_request\", from: \"lead\", to: \"backend-dev\", request_id: \"req_abc123\" }\n  Written to: .team/requests/req_abc123.json",
+      "annotation": "Durable request record persisted to disk -- survives context compression"
+    },
+    {
+      "type": "system_event",
+      "content": "[backend-dev] Received shutdown request req_abc123\n  Current task: none (idle)\n  Decision: approve\n  -> lead inbox: { type: \"shutdown_response\", request_id: \"req_abc123\", approved: true }",
+      "annotation": "Teammate decides based on its own state; response references same request_id"
+    },
+    {
+      "type": "system_event",
+      "content": "[RequestRecord] req_abc123 updated\n  State: pending -> approved\n  Response: { approved: true }\n  backend-dev thread stopped\n  Status: idle -> shutdown",
+      "annotation": "State transition is the teaching spine: pending -> approved is what matters"
     },
     {
       "type": "assistant_text",
-      "content": "I'll add rate limiting to the Express API. The project uses Express with TypeScript.",
-      "annotation": "Model's response reflects the assembled context -- it knows the framework from memory injection"
-    },
-    {
-      "type": "tool_call",
-      "content": "npm install express-rate-limit",
-      "toolName": "bash",
-      "annotation": "Action informed by prompt pipeline output"
-    },
-    {
-      "type": "tool_result",
-      "content": "added 1 package",
-      "toolName": "bash",
-      "annotation": "Normal tool execution continues"
-    },
-    {
-      "type": "tool_call",
-      "content": "write_file src/middleware/rateLimit.ts\n---\nimport rateLimit from 'express-rate-limit';\nexport const apiLimiter = rateLimit({ windowMs: 15*60*1000, max: 100 });",
-      "toolName": "write_file",
-      "annotation": "Code follows the project constraint (TypeScript) injected via the prompt pipeline"
-    },
-    {
-      "type": "assistant_text",
-      "content": "Rate limiter added at src/middleware/rateLimit.ts with 100 requests per 15-minute window.",
-      "annotation": "The prompt pipeline controls what the model sees, which controls how it behaves"
+      "content": "backend-dev shut down gracefully. The protocol used a durable request record with request_id correlation. The same pattern handles plan approval and handoff.",
+      "annotation": "One pattern (request_id + state machine), multiple coordination applications"
     }
   ]
 }

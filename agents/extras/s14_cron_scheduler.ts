@@ -891,7 +891,7 @@ async function main(): Promise<void> {
             rl.question(prompt, resolve);
         });
 
-    console.log("Session 14: Cron Scheduler. Type 'q' to exit.\n");
+    console.log("Extra: Cron Scheduler. Type 'q' to exit.\n");
 
     while (true) {
         try {

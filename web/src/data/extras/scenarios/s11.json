@@ -1,0 +1,69 @@
+{
+  "version": "s11",
+  "title": "Error Recovery",
+  "description": "Agent classifies errors and chooses appropriate recovery branches",
+  "steps": [
+    {
+      "type": "user_message",
+      "content": "Run the test suite and fix any failures",
+      "annotation": "A task that will likely encounter errors requiring recovery"
+    },
+    {
+      "type": "tool_call",
+      "content": "npm test",
+      "toolName": "bash",
+      "annotation": "Running the test suite"
+    },
+    {
+      "type": "tool_result",
+      "content": "FAIL src/auth.test.ts\n  - token expiry test: Expected 3600, received 7200\n  - refresh token test: Timeout after 5000ms\nError: 2 tests failed.",
+      "toolName": "bash",
+      "annotation": "Tool result contains errors -- recovery system classifies them"
+    },
+    {
+      "type": "system_event",
+      "content": "[Recovery] Error classified: assertion_failure (token expiry)\n[Recovery] Error classified: timeout (refresh token)\n[Recovery] Branch: retry_with_fix for assertion, increase_timeout for timeout",
+      "annotation": "Errors are classified before recovery -- different types get different strategies"
+    },
+    {
+      "type": "tool_call",
+      "content": "cat src/auth/token.util.ts | grep expiry",
+      "toolName": "bash",
+      "annotation": "Continuation reason: 'retrying because assertion value mismatch' -- model investigates"
+    },
+    {
+      "type": "tool_result",
+      "content": "const EXPIRY = 7200; // 2 hours",
+      "toolName": "bash",
+      "annotation": "Found the mismatch -- token expiry is 7200 but test expects 3600"
+    },
+    {
+      "type": "tool_call",
+      "content": "edit src/auth/token.util.ts: EXPIRY = 3600",
+      "toolName": "edit",
+      "annotation": "Fix applied after explicit recovery reason"
+    },
+    {
+      "type": "system_event",
+      "content": "[Recovery] Retry count: 1/3 for test suite. Continuing with fix.",
+      "annotation": "Hard limit on retries -- bounded recovery prevents infinite loops"
+    },
+    {
+      "type": "tool_call",
+      "content": "npm test -- --testTimeout=10000",
+      "toolName": "bash",
+      "annotation": "Second recovery branch: increased timeout for slow refresh token test"
+    },
+    {
+      "type": "tool_result",
+      "content": "PASS src/auth.test.ts (2 tests)",
+      "toolName": "bash",
+      "annotation": "Both recovery branches resolved the failures"
+    },
+    {
+      "type": "assistant_text",
+      "content": "All tests pass. Fixed the token expiry value and increased the test timeout for the refresh token test.",
+      "annotation": "Recovery kept the system moving -- each failure had an explicit reason and a bounded strategy"
+    }
+  ]
+}

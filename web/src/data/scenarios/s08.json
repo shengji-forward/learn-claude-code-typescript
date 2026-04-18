@@ -1,44 +1,56 @@
 {
   "version": "s08",
-  "title": "Hook System",
-  "description": "Lifecycle hooks observe and extend the agent loop without rewriting it",
+  "title": "Background Tasks",
+  "description": "Agent executes long-running tasks in background runtime slots",
   "steps": [
     {
       "type": "user_message",
-      "content": "Fix the failing test in auth.test.ts",
-      "annotation": "A routine task that will trigger lifecycle hooks at each stage"
-    },
-    {
-      "type": "system_event",
-      "content": "[Hook: on_start] Session resumed. Tool usage count: 47. Active hooks: audit_logger, tool_timer, error_tracer.",
-      "annotation": "on_start hook fires when the loop begins -- audit hook records session state"
-    },
-    {
-      "type": "tool_call",
-      "content": "cat auth.test.ts",
-      "toolName": "bash",
-      "annotation": "Model reads the test file"
-    },
-    {
-      "type": "system_event",
-      "content": "[Hook: pre_tool] tool=bash, cmd='cat auth.test.ts'\n[Hook: tool_timer] Starting timer for bash call...",
-      "annotation": "pre_tool hook fires before execution -- timer hook starts measuring"
-    },
-    {
-      "type": "tool_result",
-      "content": "// test file contents...",
-      "toolName": "bash",
-      "annotation": "Tool executes normally"
-    },
-    {
-      "type": "system_event",
-      "content": "[Hook: post_tool] tool=bash, duration=0.3s, status=success\n[Hook: audit_logger] Logged: bash cat auth.test.ts -> success (0.3s)",
-      "annotation": "post_tool hook fires after execution -- audit hook records the result"
+      "content": "Run the full test suite and while it runs, fix the lint errors",
+      "annotation": "Two tasks that can run concurrently"
     },
     {
       "type": "assistant_text",
-      "content": "I can see the test expects a different token format. Let me fix it.",
-      "annotation": "Hooks observe and annotate without disrupting the main loop flow"
+      "content": "I'll start the tests as a runtime task and fix linting in parallel.",
+      "annotation": "Agent recognizes opportunity for background execution"
+    },
+    {
+      "type": "tool_call",
+      "content": "runtime_task_start(\"npm test -- --runInBand\")",
+      "toolName": "runtime_task",
+      "annotation": "Creates a RuntimeTaskRecord and spawns background execution"
+    },
+    {
+      "type": "system_event",
+      "content": "[RuntimeTask] Created record rt_001\n  Task: npm test -- --runInBand\n  Status: running\n  Output file: .runtime/rt_001/output.txt",
+      "annotation": "RuntimeTaskRecord separates goal from execution slot"
+    },
+    {
+      "type": "tool_result",
+      "content": "Runtime task started: rt_001",
+      "toolName": "runtime_task",
+      "annotation": "Control returns immediately to the agent"
+    },
+    {
+      "type": "tool_call",
+      "content": "npm run lint -- --fix",
+      "toolName": "bash",
+      "annotation": "Agent works on linting while tests run in background"
+    },
+    {
+      "type": "tool_result",
+      "content": "Fixed 12 linting errors in 5 files",
+      "toolName": "bash",
+      "annotation": "Foreground work continues during background execution"
+    },
+    {
+      "type": "system_event",
+      "content": "[Notification] Runtime task rt_001 completed\n  Preview: 47 passed, 2 failed\n  Full output: .runtime/rt_001/output.txt",
+      "annotation": "Preview + file split: main loop learns result summary without flooding context"
+    },
+    {
+      "type": "assistant_text",
+      "content": "Linting is fixed. Tests finished: 47 passed, 2 failed. The full output is available if I need to investigate.",
+      "annotation": "Background execution returned through notification, not by mutating conversation state"
     }
   ]
 }

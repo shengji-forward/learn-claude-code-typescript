@@ -1,53 +1,51 @@
 {
   "version": "s12",
-  "title": "Task System",
-  "description": "Agent uses persistent file-based tasks with dependencies",
+  "title": "Worktree Isolation",
+  "description": "Use isolated worktree lanes for parallel task execution",
   "steps": [
     {
       "type": "user_message",
-      "content": "Build a REST API with user auth, database, and deployment config",
-      "annotation": "Multi-part task requiring dependency tracking"
+      "content": "Implement auth refactor and login UI updates in parallel",
+      "annotation": "Two active tasks in one workspace would collide"
     },
     {
       "type": "tool_call",
-      "content": "create_task(\"Set up database schema\", deps=[])\ncreate_task(\"Implement user model\", deps=[1])\ncreate_task(\"Add auth endpoints\", deps=[2])\ncreate_task(\"Write deployment config\", deps=[3])",
+      "content": "task_create(subject: \"Auth refactor\")\ntask_create(subject: \"Login UI polish\")",
       "toolName": "task_manager",
-      "annotation": "TaskManager creates file-based tasks with explicit dependencies"
-    },
-    {
-      "type": "tool_result",
-      "content": "Created 4 tasks in .tasks/\n  #1 Set up database schema [ready]\n  #2 Implement user model [blocked by #1]\n  #3 Add auth endpoints [blocked by #2]\n  #4 Write deployment config [blocked by #3]",
-      "toolName": "task_manager",
-      "annotation": "Tasks persisted to .tasks/ directory as JSON files"
+      "annotation": "Shared board remains the coordination source of truth"
     },
     {
       "type": "tool_call",
-      "content": "schema.sql\n---\nCREATE TABLE users (id SERIAL PRIMARY KEY, email TEXT UNIQUE, password_hash TEXT);",
-      "toolName": "write_file",
-      "annotation": "Working on task #1"
+      "content": "worktree_create(name: \"auth-refactor\", task_id: 1)\nworktree_create(name: \"ui-login\")\ntask_bind_worktree(task_id: 2, worktree: \"ui-login\")",
+      "toolName": "worktree_manager",
+      "annotation": "Lane allocation and task association are composable; task 2 binds after lane creation"
     },
     {
-      "type": "tool_result",
-      "content": "File written successfully",
-      "toolName": "write_file",
-      "annotation": "Schema created"
+      "type": "system_event",
+      "content": "worktree.create.before/after emitted\n.tasks/task_1.json -> { status: \"in_progress\", worktree: \"auth-refactor\" }\n.tasks/task_2.json -> { status: \"in_progress\", worktree: \"ui-login\" }\n.worktrees/index.json updated",
+      "annotation": "Control-plane state remains canonical; lifecycle events provide observability"
     },
     {
       "type": "tool_call",
-      "content": "complete_task(1)",
-      "toolName": "task_manager",
-      "annotation": "Completing task #1 automatically unblocks task #2"
+      "content": "worktree_run(name: \"auth-refactor\", command: \"npm test -- auth\")\nworktree_run(name: \"ui-login\", command: \"npm test -- login\")",
+      "toolName": "worktree_run",
+      "annotation": "Commands route by lane-scoped cwd; each task runs in its isolated directory"
     },
     {
-      "type": "tool_result",
-      "content": "Task #1 completed. Task #2 is now ready.",
-      "toolName": "task_manager",
-      "annotation": "File-based persistence outlives process memory"
+      "type": "tool_call",
+      "content": "worktree_keep(name: \"ui-login\")\nworktree_remove(name: \"auth-refactor\", complete_task: true)",
+      "toolName": "worktree_manager",
+      "annotation": "Closeout is explicit: keep one lane, remove another and complete its task"
+    },
+    {
+      "type": "system_event",
+      "content": "worktree.keep emitted for ui-login\nworktree.remove.before/after emitted for auth-refactor\ntask.completed emitted for #1\n.worktrees/events.jsonl appended",
+      "annotation": "Lifecycle transitions become explicit records while task/worktree files remain source-of-truth"
     },
     {
       "type": "assistant_text",
-      "content": "Database schema is done. Moving to user model implementation.",
-      "annotation": "Dependency graph ensures tasks execute in correct order"
+      "content": "Task board handles coordination, worktrees handle isolation. Parallel tracks stayed clean and auditable.",
+      "annotation": "Tasks answer what; worktrees answer where. Keep them separate."
     }
   ]
 }

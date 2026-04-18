@@ -2,15 +2,15 @@
 // Harness: persistent goals -- task graph that survives beyond single conversations.
 // @ts-nocheck
 /**
- * s12_task_system.ts - Tasks
+ * s07_task_system.ts - Tasks
  *
  * Tasks persist as JSON files in .tasks/ so they survive context compression.
- * Each task has a dependency graph (blockedBy/blocks).
+ * Each task has a dependency graph (blockedBy as the single source of truth).
  *
  *     .tasks/
  *       task_1.json  {"id":1, "subject":"...", "status":"completed", ...}
  *       task_2.json  {"id":2, "blockedBy":[1], "status":"pending", ...}
- *       task_3.json  {"id":3, "blockedBy":[2], "blocks":[], ...}
+ *       task_3.json  {"id":3, "blockedBy":[2], ...}
  *
  *     Dependency resolution:
  *     +----------+     +----------+     +----------+
@@ -105,7 +105,6 @@ interface Task {
     description: string;
     status: TaskStatus;
     blockedBy: number[];
-    blocks: number[];
     owner: string;
 }
 
@@ -125,7 +124,7 @@ interface TaskCreateInput {
 interface TaskUpdateInput {
     status?: TaskStatus;
     addBlockedBy?: number[];
-    addBlocks?: number[];
+    removeBlockedBy?: number[];
 }
 
 /**
@@ -218,7 +217,6 @@ class TaskManager {
             description,
             status: TaskStatus.PENDING,
             blockedBy: [],
-            blocks: [],
             owner: "",
         };
 
@@ -247,7 +245,7 @@ class TaskManager {
         taskId: number,
         status?: TaskStatus,
         addBlockedBy?: number[],
-        addBlocks?: number[]
+        removeBlockedBy?: number[]
     ): Promise<string> {
         const task = await this.load(taskId);
 
@@ -257,7 +255,6 @@ class TaskManager {
             }
             task.status = status;
 
-            // When a task is completed, remove it from all other tasks' blockedBy
             if (status === TaskStatus.COMPLETED) {
                 await this.clearDependency(taskId);
             }
@@ -267,21 +264,9 @@ class TaskManager {
             task.blockedBy = Array.from(new Set([...task.blockedBy, ...addBlockedBy]));
         }
 
-        if (addBlocks !== undefined) {
-            task.blocks = Array.from(new Set([...task.blocks, ...addBlocks]));
-
-            // Bidirectional: also update the blocked tasks' blockedBy lists
-            for (const blockedId of addBlocks) {
-                try {
-                    const blocked = await this.load(blockedId);
-                    if (!blocked.blockedBy.includes(taskId)) {
-                        blocked.blockedBy.push(taskId);
-                        await this.save(blocked);
-                    }
-                } catch (error) {
-                    // Task might not exist, ignore
-                }
-            }
+        if (removeBlockedBy !== undefined) {
+            const toRemove = new Set(removeBlockedBy);
+            task.blockedBy = task.blockedBy.filter(id => !toRemove.has(id));
         }
 
         await this.save(task);
@@ -479,7 +464,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
         input.task_id,
         input.status,
         input.addBlockedBy,
-        input.addBlocks
+        input.removeBlockedBy
     ),
     task_list: async () => await TASKS.listAll(),
     task_get: async (input) => await TASKS.get(input.task_id),
@@ -566,7 +551,7 @@ const TOOLS = [
                     type: "array",
                     items: { type: "integer" }
                 },
-                addBlocks: {
+                removeBlockedBy: {
                     type: "array",
                     items: { type: "integer" }
                 }
@@ -676,11 +661,11 @@ async function main(): Promise<void> {
         });
     };
 
-    console.log("\nSession 12: Task System");
+    console.log("\nSession 7: Task System");
     console.log("Tasks persist in .tasks/ directory and survive context compression.\n");
 
     while (true) {
-        const query = await question("\x1b[36ms12 >> \x1b[0m");
+        const query = await question("\x1b[36ms07 >> \x1b[0m");
 
         if (query.trim().toLowerCase() === "q" || query.trim() === "exit" || query.trim() === "") {
             break;

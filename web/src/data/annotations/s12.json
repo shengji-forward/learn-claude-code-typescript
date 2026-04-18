@@ -2,28 +2,22 @@
   "version": "s12",
   "decisions": [
     {
-      "id": "file-based-persistence",
-      "title": "Tasks Stored as JSON Files, Not In-Memory",
-      "description": "Tasks are persisted as JSON files in a .tasks/ directory on the filesystem instead of being held in memory. This has three critical benefits: (1) Tasks survive process crashes -- if the agent dies mid-task, the task board is still on disk when it restarts. (2) Multiple agents can read and write to the same task directory, enabling multi-agent coordination without shared memory. (3) Humans can inspect and manually edit task files for debugging. The filesystem becomes the shared database.",
-      "alternatives": "In-memory storage (like s03's TodoWrite) is simpler and faster but loses state on crash and doesn't work across multiple agent processes. A proper database (SQLite, Redis) would provide ACID guarantees and better concurrency, but adds a dependency and operational complexity. Files are the zero-dependency persistence layer that works everywhere."
+      "id": "tasks-and-lanes-separate",
+      "title": "Tasks and Worktree Lanes Are Different Layers",
+      "description": "Tasks describe the goal (what to do). Worktrees describe where execution happens (isolated directory). Keeping these layers separate prevents the runtime model from blurring: a task can exist without a worktree, and a worktree can exist without an active task. The binding between them is explicit and optional.",
+      "alternatives": "Folding worktree state into task records conflates goal and location. Requiring every task to have a worktree adds overhead for trivial tasks. Separate records with optional binding is the cleanest model."
     },
     {
-      "id": "dependency-graph",
-      "title": "Tasks Have blocks/blockedBy Dependency Fields",
-      "description": "Each task can declare which other tasks it blocks (downstream dependents) and which tasks block it (upstream dependencies). An agent will not start a task that has unresolved blockedBy dependencies. This is essential for multi-agent coordination: when Agent A is writing the database schema and Agent B needs to write queries against it, Agent B's task is blockedBy Agent A's task. Without dependencies, both agents might start simultaneously and Agent B would work against a schema that doesn't exist yet.",
-      "alternatives": "Simple priority ordering (high/medium/low) doesn't capture 'task B literally cannot start until task A finishes.' A centralized coordinator that assigns tasks in order would work but creates a single point of failure and bottleneck. Declarative dependencies let each agent independently determine what it can work on by reading the task files."
+      "id": "explicit-lifecycle",
+      "title": "Explicit enter / run / closeout Lifecycle",
+      "description": "Worktree operations follow a defined lifecycle: allocate the worktree, enter the directory, run the work, then decide whether to keep or remove it during closeout. Each step is a separate tool operation, making the lifecycle inspectable and recoverable. Partial failures (crash during execution) leave the worktree in a known state.",
+      "alternatives": "Auto-managing worktrees invisibly makes failures mysterious. Combining all lifecycle steps into one operation reduces flexibility and prevents partial recovery."
     },
     {
-      "id": "task-default-todo-coexistence",
-      "title": "Task as Course Default, Todo Still Useful",
-      "description": "TaskManager extends the Todo mental model and becomes the default workflow from s12 onward in this course. Both track work items with statuses, but TaskManager adds file persistence (survives crashes), dependency tracking (blocks/blockedBy), ownership fields, and multi-process coordination. Todo remains useful for short, linear, one-shot tracking where heavyweight coordination is unnecessary.",
-      "alternatives": "Using only Todo keeps the model minimal but weak for long-running or collaborative work. Using only Task everywhere maximizes consistency but can feel heavy for tiny one-off tasks."
-    },
-    {
-      "id": "task-write-discipline",
-      "title": "Durability Needs Write Discipline",
-      "description": "File persistence reduces context loss, but it does not remove concurrent-write risks by itself. Before writing task state, reload the JSON, validate expected status/dependency fields, and then save atomically. This prevents one agent from silently overwriting another agent's transition.",
-      "alternatives": "Blind overwrite writes are simpler but can corrupt coordination state under parallel execution. A database with optimistic locking would enforce stronger safety, but the course keeps file-based state for zero-dependency teaching."
+      "id": "event-stream-observability",
+      "title": "Lifecycle Events Make Lanes Observable",
+      "description": "Create, enter, and closeout events are emitted to an append-only event stream (.worktrees/events.jsonl). This makes execution-lane state visible to the rest of the system without querying each worktree individually. Events are the side channel for observability; task and worktree files remain the source of truth.",
+      "alternatives": "Querying each worktree's git status is slow and doesn't capture transitions. Console logs are ephemeral and hard to audit. A full event bus is powerful but heavier than needed."
     }
   ]
 }

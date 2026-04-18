@@ -299,12 +299,32 @@ async function scanUnclaimedTasks(): Promise<Task[]> {
 
 /**
  * Claim a task by ID
- * TypeScript: Async method with atomic file operation
+ * TypeScript: Async function with lockfile-protected atomic claim
  * Python: Function with threading.Lock()
  */
 async function claimTask(taskId: number, owner: string): Promise<string> {
     const taskPath = path.join(TASKS_DIR, `task_${taskId}.json`);
+    const lockPath = path.join(TASKS_DIR, ".claim.lock");
 
+    const acquireLock = async (): Promise<void> => {
+        let staleDeadline = Date.now() + 5000;
+        while (true) {
+            try {
+                const fh = await fs.open(lockPath, "wx");
+                await fh.close();
+                return;
+            } catch (err: any) {
+                if (err?.code !== "EEXIST") throw err;
+                if (Date.now() > staleDeadline) {
+                    try { await fs.unlink(lockPath); } catch {}
+                    staleDeadline = Date.now() + 5000;
+                }
+                await sleep(20);
+            }
+        }
+    };
+
+    await acquireLock();
     try {
         const content = await fs.readFile(taskPath, "utf-8");
         const task: Task = JSON.parse(content);
@@ -327,6 +347,8 @@ async function claimTask(taskId: number, owner: string): Promise<string> {
         return `Claimed task #${taskId} for ${owner}`;
     } catch (error) {
         return `Error: Task ${taskId} not found`;
+    } finally {
+        try { await fs.unlink(lockPath); } catch {}
     }
 }
 
@@ -636,7 +658,11 @@ async function autonomousLoop(): Promise<void> {
             const unclaimed = await scanUnclaimedTasks();
             if (unclaimed.length > 0) {
                 const task = unclaimed[0];
-                await claimTask(task.id, data.teammateName);
+                const claimResult = await claimTask(task.id, data.teammateName);
+                if (!claimResult.startsWith("Claimed task #")) {
+                    await sleep(POLL_INTERVAL);
+                    continue;
+                }
 
                 parentPort?.postMessage({
                     type: "task_claimed",

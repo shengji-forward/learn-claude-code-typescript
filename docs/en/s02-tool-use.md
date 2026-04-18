@@ -1,31 +1,37 @@
 # s02: Tool Use
 
-`s01 > [ s02 ] > s03 > s04 > s05 > s06 > s07 > s08 > s09 > s10 > s11 > s12 > s13 > s14 > s15 > s16 > s17 > s18 > s19`
+`s01 > [ s02 ] s03 > s04 > s05 > s06 | s07 > s08 > s09 > s10 > s11 > s12`
 
-> "Adding a tool means adding one handler" - the loop stays unchanged.
+> *"Adding a tool means adding one handler"* -- the loop stays the same; new tools register into the dispatch map.
 >
 > **Harness layer**: Tool dispatch -- expanding what the model can reach.
 
 ## Problem
 
-Using only `bash` works, but file operations become noisy and less constrained. We want clearer contracts like `read_file`, `write_file`, and `edit_file` without changing the core loop.
+With only `bash`, the agent shells out for everything. `cat` truncates unpredictably, `sed` fails on special characters, and every bash call is an unconstrained security surface. Dedicated tools like `read_file` and `write_file` let you enforce path sandboxing at the tool level.
+
+The key insight: adding tools does not require changing the loop.
 
 ## Solution
 
 ```
 +--------+      +-------+      +------------------+
 |  User  | ---> |  LLM  | ---> | Tool Dispatch    |
-| prompt |      |       |      | { name -> fn }   |
-+--------+      +---+---+      +--------+---------+
-                    ^                    |
-                    +---- tool_result ---+
-```
+| prompt |      |       |      | {                |
++--------+      +---+---+      |   bash: run_bash |
+                    ^           |   read: run_read |
+                    |           |   write: run_wr  |
+                    +-----------+   edit: run_edit |
+                    tool_result | }                |
+                                +------------------+
 
-A dispatch map routes tool names to handler functions.
+The dispatch map is a dict: {tool_name: handler_function}.
+One lookup replaces any if/elif chain.
+```
 
 ## How It Works
 
-1. Keep file access inside workspace boundaries.
+1. Each tool gets a handler function. Path sandboxing prevents workspace escape.
 
 ```typescript
 function safePath(p: string): string {
@@ -37,32 +43,54 @@ function safePath(p: string): string {
 }
 ```
 
-2. Register handlers in one object.
+2. The dispatch map links tool names to handlers.
 
 ```typescript
-const TOOL_HANDLERS: Record<string, (input: any) => Promise<string>> = {
-  bash: async (input) => runBash(input.command),
-  read_file: async (input) => runRead(input.path, input.limit),
-  write_file: async (input) => runWrite(input.path, input.content),
-  edit_file: async (input) => runEdit(input.path, input.old_text, input.new_text),
+const TOOL_HANDLERS: Record<string, ToolHandler> = {
+  bash: async (input) => {
+    const command = input.command as string;
+    return runBash(command);
+  },
+  read_file: async (input) => {
+    const filePath = input.path as string;
+    const limit = input.limit as number | undefined;
+    return runRead(filePath, limit);
+  },
+  write_file: async (input) => {
+    return runWrite(input.path as string, input.content as string);
+  },
+  edit_file: async (input) => {
+    return runEdit(
+      input.path as string,
+      input.old_text as string,
+      input.new_text as string,
+    );
+  },
 };
 ```
 
-3. Tool execution is just a lookup.
+3. In the loop, look up the handler by name. The loop body itself is unchanged from s01.
 
 ```typescript
 const handler = TOOL_HANDLERS[block.name];
-const output = handler ? await handler(block.input) : `Unknown tool: ${block.name}`;
+let output: string;
+if (handler) {
+  output = await handler(block.input);
+} else {
+  output = `Unknown tool: ${block.name}`;
+}
 ```
+
+Add a tool = add a handler + add a schema entry. The loop never changes.
 
 ## What Changed From s01
 
-| Component | s01 | s02 |
-|---|---|---|
-| Tool count | 1 | 4 |
-| Routing | direct call | dispatch map |
-| Path safety | implicit | explicit `safePath()` |
-| Agent loop | unchanged | unchanged |
+| Component      | Before (s01)       | After (s02)                |
+|----------------|--------------------|----------------------------|
+| Tools          | 1 (bash only)      | 4 (bash, read, write, edit)|
+| Dispatch       | Hardcoded bash call | `TOOL_HANDLERS` map      |
+| Path safety    | None               | `safePath()` sandbox       |
+| Agent loop     | Unchanged          | Unchanged                  |
 
 ## Try It
 
@@ -70,6 +98,7 @@ const output = handler ? await handler(block.input) : `Unknown tool: ${block.nam
 npm run s02
 ```
 
-- Read a source file with `read_file`.
-- Modify it with `edit_file`.
-- Re-read to validate the change.
+1. `Read the file package.json`
+2. `Create a file called greet.ts with a greet(name) function`
+3. `Edit greet.ts to add a docstring to the function`
+4. `Read greet.ts to verify the edit worked`

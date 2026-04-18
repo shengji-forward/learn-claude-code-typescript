@@ -1,60 +1,70 @@
 # s04: Subagents
 
-`s01 > s02 > s03 > [ s04 ] > s05 > s06 > s07 > s08 > s09 > s10 > s11 > s12 > s13 > s14 > s15 > s16 > s17 > s18 > s19`
+`s01 > s02 > s03 > [ s04 ] s05 > s06 | s07 > s08 > s09 > s10 > s11 > s12`
 
-> "Break big tasks down; each subtask gets a clean context".
+> *"Break big tasks down; each subtask gets a clean context"* -- subagents use independent `messages[]`, keeping the main conversation clean.
 >
 > **Harness layer**: Context isolation -- protecting the model's clarity of thought.
 
 ## Problem
 
-A single growing context can mix unrelated details. When one subtask is independent, forcing it into the same message history increases noise and confusion.
+As the agent works, its messages array grows. Every file read, every bash output stays in context permanently. "What testing framework does this project use?" might require reading 5 files, but the parent only needs the answer: "vitest" or "jest".
 
 ## Solution
 
 ```
-Parent context                  Child context
-+------------------+            +------------------+
-| messages=[...]   |            | messages=[]      |
-| call task tool   | ---------> | run loop         |
-| continue work    | <--------- | return summary   |
-+------------------+            +------------------+
-```
+Parent agent                     Subagent
++------------------+             +------------------+
+| messages=[...]   |             | messages=[]      | <-- fresh
+|                  |  dispatch   |                  |
+| tool: task       | ----------> | while tool_use:  |
+|   prompt="..." |             |   call tools     |
+|                  |  summary    |   append results |
+|   result = "..." | <---------- | return last text |
++------------------+             +------------------+
 
-The child gets isolated context and returns only concise results.
+Parent context stays clean. Subagent context is discarded.
+```
 
 ## How It Works
 
-1. Parent has a `task` tool; child does not (no recursive spawning by default).
+1. The parent gets a `task` tool. The child gets all base tools except `task` (no recursive spawning).
 
 ```typescript
-const PARENT_TOOLS = [...BASE_TOOLS, taskTool];
-const CHILD_TOOLS = [...BASE_TOOLS];
+const PARENT_TOOLS: Tool[] = [...BASE_TOOLS, taskTool];
+const CHILD_TOOLS: Tool[] = [...BASE_TOOLS];
 ```
 
-2. Spawn subagent loop with fresh messages.
+2. The subagent starts with a fresh user message and runs its own loop. Only the final text returns to the parent.
 
 ```typescript
 async function runSubagent(prompt: string): Promise<string> {
-  const subMessages = [{ role: "user", content: prompt }];
+  const subMessages: Message[] = [{ role: "user", content: prompt }];
   await agentLoop(subMessages, CHILD_TOOLS);
   return extractText(subMessages);
 }
 ```
 
-3. Parent receives summary as `tool_result` and keeps going.
+3. The parent receives a summary as a normal `tool_result`.
 
 ```typescript
-results.push({ type: "tool_result", tool_use_id: block.id, content: subSummary });
+results.push({
+  type: "tool_result",
+  tool_use_id: block.id,
+  content: subSummary,
+});
 ```
+
+The child's entire message history is discarded. The parent receives a concise summary.
 
 ## What Changed From s03
 
-| Component | s03 | s04 |
-|---|---|---|
-| Context model | single thread | parent + isolated child |
-| Delegation | none | `task` tool |
-| Return value | direct tool outputs | summarized child result |
+| Component      | Before (s03)     | After (s04)               |
+|----------------|------------------|---------------------------|
+| Tools          | 5                | 5 (base) + task (parent)  |
+| Context        | Single shared    | Parent + child isolation  |
+| Subagent       | None             | `runSubagent()`           |
+| Return value   | N/A              | Summary text only         |
 
 ## Try It
 
@@ -62,6 +72,6 @@ results.push({ type: "tool_result", tool_use_id: block.id, content: subSummary }
 npm run s04
 ```
 
-- Delegate test generation to a subagent.
-- Keep main agent focused on structural refactor.
-- Verify parent context remains concise.
+1. `Use a subtask to find what testing framework this project uses`
+2. `Delegate: read key config files and summarize`
+3. `Use a task to draft a small module, then verify from the parent`

@@ -10,39 +10,45 @@ import versionsData from "@/data/generated/versions.json";
 import { MessageFlow } from "@/components/architecture/message-flow";
 
 const LAYER_DOT_COLORS: Record<string, string> = {
+  loop: "bg-blue-500",
+  planning: "bg-emerald-500",
+  persistence: "bg-amber-500",
+  teams: "bg-red-500",
   core: "bg-blue-500",
   hardening: "bg-emerald-500",
   runtime: "bg-amber-500",
   platform: "bg-red-500",
-  // Legacy aliases
   tools: "bg-blue-500",
-  planning: "bg-emerald-500",
   memory: "bg-purple-500",
   concurrency: "bg-amber-500",
   collaboration: "bg-red-500",
 };
 
 const LAYER_BORDER_COLORS: Record<string, string> = {
+  loop: "border-blue-500/30 hover:border-blue-500/60",
+  planning: "border-emerald-500/30 hover:border-emerald-500/60",
+  persistence: "border-amber-500/30 hover:border-amber-500/60",
+  teams: "border-red-500/30 hover:border-red-500/60",
   core: "border-blue-500/30 hover:border-blue-500/60",
   hardening: "border-emerald-500/30 hover:border-emerald-500/60",
   runtime: "border-amber-500/30 hover:border-amber-500/60",
   platform: "border-red-500/30 hover:border-red-500/60",
-  // Legacy aliases
   tools: "border-blue-500/30 hover:border-blue-500/60",
-  planning: "border-emerald-500/30 hover:border-emerald-500/60",
   memory: "border-purple-500/30 hover:border-purple-500/60",
   concurrency: "border-amber-500/30 hover:border-amber-500/60",
   collaboration: "border-red-500/30 hover:border-red-500/60",
 };
 
 const LAYER_BAR_COLORS: Record<string, string> = {
+  loop: "bg-blue-500",
+  planning: "bg-emerald-500",
+  persistence: "bg-amber-500",
+  teams: "bg-red-500",
   core: "bg-blue-500",
   hardening: "bg-emerald-500",
   runtime: "bg-amber-500",
   platform: "bg-red-500",
-  // Legacy aliases
   tools: "bg-blue-500",
-  planning: "bg-emerald-500",
   memory: "bg-purple-500",
   concurrency: "bg-amber-500",
   collaboration: "bg-red-500",

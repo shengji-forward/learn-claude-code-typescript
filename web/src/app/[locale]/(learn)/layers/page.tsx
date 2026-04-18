@@ -13,26 +13,30 @@ import versionData from "@/data/generated/versions.json";
 const data = versionData as VersionIndex;
 
 const LAYER_BORDER_CLASSES: Record<string, string> = {
+  loop: "border-l-blue-500",
+  planning: "border-l-emerald-500",
+  persistence: "border-l-amber-500",
+  teams: "border-l-red-500",
   core: "border-l-blue-500",
   hardening: "border-l-emerald-500",
   runtime: "border-l-amber-500",
   platform: "border-l-red-500",
-  // Legacy aliases
   tools: "border-l-blue-500",
-  planning: "border-l-emerald-500",
   memory: "border-l-purple-500",
   concurrency: "border-l-amber-500",
   collaboration: "border-l-red-500",
 };
 
 const LAYER_HEADER_BG: Record<string, string> = {
+  loop: "bg-blue-500",
+  planning: "bg-emerald-500",
+  persistence: "bg-amber-500",
+  teams: "bg-red-500",
   core: "bg-blue-500",
   hardening: "bg-emerald-500",
   runtime: "bg-amber-500",
   platform: "bg-red-500",
-  // Legacy aliases
   tools: "bg-blue-500",
-  planning: "bg-emerald-500",
   memory: "bg-purple-500",
   concurrency: "bg-amber-500",
   collaboration: "bg-red-500",
